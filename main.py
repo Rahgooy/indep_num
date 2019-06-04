@@ -10,7 +10,7 @@ pop_size = 1000
 threshold = 0.110
 pop = [FUN.rand_graph(n, randint(n, n*(n-1)/2 + 1)) for _ in range(pop_size)]
 
-ga = GA(FUN.fit_eigen_values, FUN.mu, FUN.cr4, 0.3, 0.2, 0.2, cache_key=lambda x: str(x.adjacency_matrix()).__hash__())
+ga = GA(FUN.fit_eigen_values, FUN.mu, FUN.cr4, 0.3, 0.2, cache_key=lambda x: str(x.adjacency_matrix()).__hash__())
 
 results = ga.run(pop, 100, threshold)
 results = sorted(results, key=lambda x: -x[1])
