@@ -66,9 +66,9 @@ pop_size = 100
 threshold = 0.11
 pop = [rand_graph(10, randint(n, n*(n-1)/2 + 1)) for _ in range(pop_size)]
 
-ga = GA(fit, mu, cr, 0.3, 0.2)
+ga = GA(fit, mu, cr, 0.3, 0.2, cache_key=lambda x: str(x.adjacency_matrix()).__hash__())
 results = ga.run(pop, 100, threshold)
-results = sorted(results, key = lambda x: -x[1])
+results = sorted(results, key=lambda x: -x[1])
 for g, fit in results:
     print(g.adjacency_matrix())
     print(g.lovasz_theta())
@@ -78,7 +78,8 @@ for g, fit in results:
     print(fit)
     print("---------------------------------------")
 
-
+hr = ga.cache_stats["hit"] * 100.0 / (ga.cache_stats["hit"] + ga.cache_stats["miss"])
+print("Cache hit rate: " + str(round(hr)) + "%")
 # G = rand_graph(5, 6)
 # print(G.edges())
 # G.add_edge(1, 5)
