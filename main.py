@@ -4,13 +4,14 @@ import sys
 from ga import GA
 import functions as FUN
 from numpy.random import randint, rand
+from igraph import *
 
 n = 20 # graph size
 pop_size = 100
 threshold = 0.130
 pop = [FUN.rand_graph(n, randint(n, n*(n-1)/2 + 1)) for _ in range(pop_size)]
 
-ga = GA(FUN.fit, FUN.mutate_avoid_large_subgraph, FUN.cr5, 0.3, 0.2, cache_key=lambda x: str(x.adjacency_matrix()).__hash__())
+ga = GA(FUN.fit, FUN.mutate_avoid_large_subgraph, FUN.cr5, 0.3, 0.2, cache_key=lambda x: str(x.get_adjacency()).__hash__())
 results = ga.run(pop, 100, threshold)
 results = sorted(results, key=lambda x: -x[1])
 with open("resutls.txt", "w") as f:
