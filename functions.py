@@ -21,7 +21,7 @@ def fit(g):
 def fit_eigen_values(g):
     """Returns the ratio between the largest and second largest abs. value eigenvectors."""
     """This doesn't give good results, because we usually must assume the graphs are regular."""
-    adjacency = np.array(g.get_adjacency())
+    adjacency = np.array(g.adjacency_matrix())
     eigenvalues = np.linalg.eigh(adjacency)[0]
     largest = eigenvalues[-1]
     second_largest = max(abs(eigenvalues[0]), abs(eigenvalues[-2]))
@@ -269,17 +269,14 @@ def cr5(g1, g2):
     """Flip a coin for each vertex. A pair of vertices whose smaller one is labeled g1
     is an edge iff g1 has that edge. """
     if g1.vcount() != g2.vcount():
-        print
-        "the two graphs should be of the same vcount"
-        print
-        g1.vcount(), g2.vcount()
+        print("the two graphs should be of the same vcount")
+        print(g1.vcount(), g2.vcount())
     vertex_assignments = np.random.randint(2, size=g1.vcount())
-    new_graph = graphs.CompleteGraph(g1.vcount()).complementerer()
+    new_graph = Graph.Full(g1.vcount())
+    new_graph = ExtendedGraph.asExtended(new_graph.complementer())
     if new_graph.vcount() != g1.vcount():
-        print
-        "offf1111"
-        print
-        new_graph.vcount(), g1.vcount()
+        print("offf1111")
+        print(new_graph.vcount(), g1.vcount())
     for v in new_graph.vertices():
         # print v
         if vertex_assignments[v] == 0:
@@ -291,10 +288,8 @@ def cr5(g1, g2):
 
     # new_graph, _ = remove_extra_edges(new_graph)
     if new_graph.vcount() != g1.vcount():
-        print
-        "grapsh have changed vcount."
-        print
-        new_graph.vertices()
+        print("grapsh have changed vcount.")
+        print(new_graph.vertices())
     return new_graph
 
     # [np.random.rand() for v in g1.vertices()]
