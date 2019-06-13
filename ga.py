@@ -4,6 +4,7 @@ A simple implementation of genetic algorithm.
 import numpy as np
 import sys
 
+
 class GA(object):
     """A generic class which provides the basic functions
     and data structures for GA.
@@ -25,7 +26,10 @@ class GA(object):
     """
 
     def __init__(self, fit, mu, cr, p_cr, p_elite,
-    log_func=lambda x: sys.stdout.write(x + '\n')):
+                 log_func=lambda x: sys.stdout.write(x + '\n'),
+                 cache=True,
+                 cache_key=lambda x: x.__hash__()
+                 ):
         super(GA, self).__init__()
         self.fit = fit
         self.mu = mu
@@ -34,6 +38,10 @@ class GA(object):
         self.p_cr = p_cr
         self.fitness = []
         self.log = log_func
+        self.cache_fitness = cache
+        self.cache = {}
+        self.cache_stats = {"hit": 0, "miss": 0, }
+        self.cache_key = cache_key
 
     def run(self, pop, iter, gt):
         """Runs the genetic algorithm and returns the results.
@@ -52,9 +60,9 @@ class GA(object):
         self.pop = [i.copy() for i in pop]
         good = []
         best = None
-        for i in range(1, iter+1):
+        for i in range(1, iter + 1):
             if i % 10 == 1:
-                self.log("Iteration " + str(i) + "/" + str(iter)+ " ...")
+                self.log("Iteration " + str(i) + "/" + str(iter) + " ...")
             # 1. Selection
             self._select()
             # save the good ones
@@ -63,7 +71,8 @@ class GA(object):
                     best = self.fitness[j]
                 if self.fitness[j] >= gt and (self.pop[j], self.fitness[j]) not in good:
                     good.append((self.pop[j].copy(), self.fitness[j]))
-                    self.log("Found a good individual with fitness :" +  str(self.fitness[j]) + "(best: " + str(best) + ")")
+                    self.log(
+                        "Found a good individual with fitness :" + str(self.fitness[j]) + "(best: " + str(best) + ")")
                 else:
                     break
 
@@ -80,7 +89,7 @@ class GA(object):
                     # 2.2.1 cross over
                     ind1 = np.random.randint(0, n)
                     ind2 = np.random.randint(0, n)
-                    while(ind1 == ind2):
+                    while (ind1 == ind2):
                         ind2 = np.random.randint(0, n)
                     new_pop.append(self.cr(self.pop[ind1], self.pop[ind2]))
                 else:
@@ -101,7 +110,18 @@ class GA(object):
         """
         self.fitness = []
         for i in range(self.n):
-            self.fitness.append(self.fit(self.pop[i]))
+            if self.cache_fitness:
+                key = self.cache_key(self.pop[i])
+                if key in self.cache:
+                    self.cache_stats["hit"] += 1
+                else:
+                    self.cache[key] = self.fit(self.pop[i])
+                    self.cache_stats["miss"] += 1
+                f = self.cache[key]
+            else:
+                f = self.fit(self.pop[i])
+
+            self.fitness.append(f)
 
         # roulette wheel selection
         vals = np.array(self.fitness)
