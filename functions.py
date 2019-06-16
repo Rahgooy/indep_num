@@ -6,12 +6,42 @@ import bronkerbosch as BON
 import random
 import lovasz as LOV
 from numpy.random import randint, rand
-from sage.all import *
-from sage.graphs.graph_generators_pyx import RandomGNP
+from extended_graph import *
 from random import shuffle
 
 """Helper Functions"""
+def edge_list_from_dict(dict):
+    edge_list = []
+    for k in dict.keys():
+        for v in dict[k]:
+            edge_list.append((k,v))
+    return edge_list
 
+
+def rand_graph(n, m):
+    """Generate a random graph with n vertices and m edges"""
+    g = { v: [] for v in range(n)}
+    i = 0
+    while i < m:
+        x = randint(0, n)
+        y = randint(0, n)
+        if x > y:
+            x, y = y, x
+        if x != y and y not in g[x]:
+            g[x].append(y)
+            i += 1
+    return ExtendedGraph(edge_list_from_dict(g))
+def random_gnp(n,p):
+    """Generate a random graph where each edge has probability p"""
+    dict = {}
+    for a in range(n):
+        neighbors = []
+        for b in range(a+1,n):
+            r = np.random.rand()
+            if r < p:
+                neighbors.append(b)
+        dict[a]=neighbors
+    return ExtendedGraph(edge_list_from_dict(dict))
 def remove_extra_edges(g):
     """Calculates the maximal independent sets of g.
     If an edge doesnt intersect a maximal independent set, it can be removed
@@ -46,13 +76,14 @@ def _update_indep_sets(g, e, indep_sets ):
     non_neighbors_of_e =set([v for  v in g.vertices() if not v in ( g.neighbors(e[0]) + g.neighbors(e[1]) )])
     subgraph_without_e = g.subgraph(non_neighbors_of_e)
     #new_indep_sets = BON.cliques_of_graph(subgraph_without_e.complement())
-    new_indep_sets = [i.intersection(non_neighbors_of_e).union({e[0],e[1]}) for i in indep_sets]
+    new_indep_sets = [set(i).intersection(non_neighbors_of_e).union({e[0],e[1]}) for i in indep_sets]
     #[i for i in indep_sets if i not]
     extra_indep_sets=[]
     for i in indep_sets:
-        if not (e[0] in i ) and ( i.union({e[1]}) in new_indep_sets ):
-            if not (e[1] in i ) and (i.union({e[0]}) in new_indep_sets ):
-                extra_indep_sets.append(i)
+        s = set(i)
+        if not (e[0] in s ) and ( s.union({e[1]}) in new_indep_sets ):
+            if not (e[1] in s ) and (s.union({e[0]}) in new_indep_sets ):
+                extra_indep_sets.append(s)
     new_indep_sets = new_indep_sets + extra_indep_sets
     return new_indep_sets
 
@@ -61,17 +92,19 @@ def _remove_extra_edge(g, indep_sets = None):
     #dict = BON.dict_from_adjacency_matrix(g.complement())
     #if indep_sets is None:
     #    indep_sets = BON.find_cliques(dict) #a list of all maximal-by-inclusion independent sets.
-    indep_sets = BON.cliques_of_graph(g.complement())
+    #indep_sets = BON.cliques_of_graph(g.complementer())
+    indep_sets = [set(i) for i in g.maximal_independent_vertex_sets()]
     max_size = 0
     max_indep_sets = [] #a list of all maximal-by-size independent sets
     new_graph = g.copy()
-    max_indep_sets = [i for i in indep_sets if len(i) == len(indep_sets[-1])]
+    #max_indep_sets = [i for i in indep_sets if len(i) == len(indep_sets[-1])]
+    max_indep_sets = [set(i) for i in g.largest_independent_vertex_sets()]
     #removeable_edges = [e for e in g.edges() if _can_remove(e, max_indep_sets)]
     edges=g.edges()
     shuffle(edges)
     for e in edges:
         if _can_remove(e, max_indep_sets):
-            new_graph.delete_edge(e)
+            new_graph.delete_edges(e)
             new_indep_sets = _update_indep_sets(new_graph,e,indep_sets)
             return new_graph, new_indep_sets
     return new_graph, indep_sets
@@ -119,12 +152,12 @@ def _large_lovasz_subgraph(g, fraction = 0.5):
 def fit(g):
     if g.order() < 1:
         print("empty graph")
-    return g.lovasz_theta() / len(g.independent_set())
+    return g.lovasz_theta() / g.independence_number()
 
 def fit_regularity(g):
     """ returns the reciprocal of the standard deviation of the degree list """
     """ We take the reciprocal so that regular graphs are the most fit."""
-    degrees = g.degree_sequence()
+    degrees = g.degree()
     deviation = np.std(degrees)
     return 1/(1+deviation)
 
@@ -144,11 +177,11 @@ def fit_eigen_values(g):
 def mu(g):
     """Choose a random edge uv, if exists remove it. If not, add it"""
     g = g.copy()
-    v = randint(0, g.order()-1)
-    u = randint(0, g.order()-1)
+    v = randint(0, g.order())
+    u = randint(0, g.order())
 
     while u == v:
-        u = randint(0, g.order()-1)
+        u = randint(0, g.order())
     if g.has_edge(u, v):
         if g.size() > 1:
             g.delete_edge(u, v)
@@ -162,8 +195,9 @@ def mu(g):
 def add_edge_to_max_indep_set(g):
     """Chooses a random maximal independent set to add an edge to"""
     g = g.copy()
-    indep_sets = BON.cliques_of_graph(g.complement(), maximal=True)
-    index = randint(0,len(indep_sets)-1) #This causes an 'index out of range error.'
+    #indep_sets = BON.cliques_of_graph(g.complement(), maximal=True)
+    indep_sets = g.largest_independent_vertex_sets()
+    index = randint(0,len(indep_sets)) #This causes an 'index out of range error.'
     indp = indep_sets[index]
 
     v = randint(0, len(indp))
@@ -196,11 +230,11 @@ def mutate_avoid_large_subgraph(g):
 def mutate_add_then_remove_edges(g):
     """Adds edges randomly, then performs remove_extra_edges."""
     g = g.copy()
-    g_c = g.complement()
+    g_c = g.complementer()
     edges = g_c.edges()
     shuffle(edges)
     for e in edges[:15]:
-        g.add_edge(e)
+        g.add_edges([e])
     g, _ = remove_extra_edges(g)
     return g
 """Crossover Functions"""
@@ -238,7 +272,7 @@ def cr2(g1, g2):
 def cr3(g1,g2,downsample = False):
     """Adds edges randomly between the disjoint union of the two graphs"""
     new_graph = g1.disjoint_union(g2, labels='pairs')
-    print new_graph.vertices()
+    #print new_graph.vertices()
     for a,b in itertools.product(g1.vertices(),g2.vertices()):
         r = np.random.rand()
         if r < 0.5:
@@ -258,10 +292,10 @@ def cr4(g1,g2):
     for edge in set(g1.edges()) ^ set(g2.edges()) :
         r = np.random.rand()
         if r < 0.5:
-            if new_graph.has_edge(edge):
-                    new_graph.delete_edge(edge)
+            if new_graph.has_edge(edge[0], edge[1]):
+                    new_graph.delete_edges(edge)
             else:
-                new_graph.add_edge(edge)
+                new_graph.add_edges([edge])
     #new_graph, _ = remove_extra_edges(new_graph)
     return new_graph
 
@@ -272,7 +306,9 @@ def cr5(g1,g2):
         print "the two graphs should be of the same order"
         print g1.order(), g2.order()
     vertex_assignments = np.random.randint(2, size=g1.order())
-    new_graph = graphs.CompleteGraph(g1.order()).complement()
+    #new_graph = graphs.CompleteGraph(g1.order()).complement()
+    new_graph = ExtendedGraph([])
+    new_graph.add_vertices(g1.order())
     if new_graph.order()!=g1.order():
         print "offf1111"
         print new_graph.order(), g1.order()
@@ -348,26 +384,12 @@ def cr7(g1,g2):
                     if r>0.5:
                         neighbors.append(t)
         dict[v]=neighbors
-    return Graph(dict)
+    return ExtendedGraph(edge_list_from_dict(dict))
 
 def cr8(g1,g2):
     """ adds an edge if there is an edge in g1 or in g2"""
     new_graph = g1.copy()
     for e in g2.edges():
-        new_graph.add_edge(e)
+        new_graph.add_edges([e])
     new_graph,_=remove_extra_edges(new_graph)
     return new_graph
-
-def rand_graph(n, m):
-    "Generate a random graph with n vertices and m edges"
-    g = { v: [] for v in range(n)}
-    i = 0
-    while i < m:
-        x = randint(0, n)
-        y = randint(0, n)
-        if x > y:
-            x, y = y, x
-        if x != y and y not in g[x]:
-            g[x].append(y)
-            i += 1
-    return Graph(g)

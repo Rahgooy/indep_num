@@ -4,13 +4,23 @@ from lovasz import lovasz_theta
 
 class ExtendedGraph(Graph):
     def __init__(self, *args, **kwds):
-        super().__init__(*args, **kwds)
+        #print args[0]
+        #g = Graph(args[0])
+        #print g
+        super(ExtendedGraph, self).__init__(args[0])
 
     def lovasz_theta(self):
         return lovasz_theta(self)
 
     def vertices(self):
         return self.vs.indices
+
+    def edges(self):
+        #print self.es
+        #print [(e.source, e.target) for e in EdgeSeq(self)]
+        return [(e.source, e.target) for e in EdgeSeq(self)]
+    def order(self):
+        return self.vcount()
 
     def adjacency_matrix(self):
         return self.get_adjacency().data

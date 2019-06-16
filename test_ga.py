@@ -1,10 +1,11 @@
-from sage.all import *
+#from sage.all import *
 from ga import GA
 import functions as FUN
 import bronkerbosch as BON
 #from main import cr3, cr4, fit_eigen_values
 import numpy as np
 import lovasz as LOV
+from numpy.random import randint, rand
 
 def fit(x):
     return 10 - (x[0] + x[1]) ** 2
@@ -35,23 +36,23 @@ pop = [
         [70, 21]
         ]
 #r = g.run(pop, 10000, 8)
-#print(r)
-graph_list = [ graphs.BidiakisCube(),
-           graphs.ButterflyGraph(),
-           graphs.HeawoodGraph(),
-           graphs.HoffmanGraph(),
-           graphs.CubeGraph(4), #cospectral with above
-           graphs.DejterGraph(),
-           graphs.DyckGraph(),
-           graphs.GrotzschGraph(),
-           graphs.HoltGraph()]
+# #print(r)
+# graph_list = [ graphs.BidiakisCube(),
+#            graphs.ButterflyGraph(),
+#            graphs.HeawoodGraph(),
+#            graphs.HoffmanGraph(),
+#            graphs.CubeGraph(4), #cospectral with above
+#            graphs.DejterGraph(),
+#            graphs.DyckGraph(),
+#            graphs.GrotzschGraph(),
+#            graphs.HoltGraph()]
 
 def test_crossover_function(l):
     """Expect l to be a crossover function.
     generates two random graphs and checks that l(g1, g2)
     does not error out and returns a graph of the same size."""
-    g1 = graphs.RandomGNP(20, .5)
-    g2 = graphs.RandomGNP(20, .5)
+    g1 = FUN.random_gnp(20, .5)
+    g2 = FUN.random_gnp(20, .5)
     child_graph = l(g1, g2)
     assert child_graph.order() == 20
 def test_cr3():
@@ -80,27 +81,32 @@ def test_eigen_fitness():
 
 def test_remove_extra_edges():
     """Checks that remove_extra_edges does not affect the independence number."""
-    g = graphs.RandomGNP(20, .5)
+    g = FUN.random_gnp(20, .5)
     r=g
     r, _ = FUN.remove_extra_edges(r)
-    assert len(r.independent_set()) == len(g.independent_set())
+    #print r.independence_number()
+    #print g.independence_number()
+    assert r.independence_number() == g.independence_number()
 
 def test_update_independent_sets():
     """Generates a random graph, finds the independent sets,
     performs remove_extra_edges, and finds the independent sets again to
     ensure that remove_extra_edges returns the new independent sets correctly.
     """
-    g = graphs.RandomGNP(10, .5)
-    indep_sets = BON.find_cliques(BON.dict_from_adjacency_matrix(g.complement()))
+    g = FUN.random_gnp(10, .5)
+    #indep_sets = BON.find_cliques(BON.dict_from_adjacency_matrix(g.complementer()))
     new_graph, new_indep_sets = FUN.remove_extra_edges(g)
-    correct_indep_sets = BON.find_cliques(BON.dict_from_adjacency_matrix(new_graph.complement()))
+    #correct_indep_sets = BON.find_cliques(BON.dict_from_adjacency_matrix(new_graph.complementer()))
+    correct_indep_sets = [set(i) for i in new_graph.maximal_independent_vertex_sets()]
+    #print new_indep_sets
+    #print correct_indep_sets
     for c in correct_indep_sets:
         assert c in new_indep_sets
     for i in new_indep_sets:
         assert i in correct_indep_sets
 
 def test_add_edge_to_max_indep_set():
-    g = graphs.RandomGNP(10, .5)
+    g = FUN.random_gnp(10, .5)
     new_graph = FUN.add_edge_to_max_indep_set(g)
     print "test complete"
 
@@ -115,10 +121,10 @@ def crossover_tests():
     #These are the crossover functions which preserve the order of the graph.
     for c in crossovers:
         test_crossover_function(c)
-    test_cr4()
+    #test_cr4()
 def test_mutation_function(l):
     """expect l to be a mutation function."""
-    g = graphs.RandomGNP(20, .5)
+    g = FUN.random_gnp(20, .5)
     mutant_graph = l(g)
     #print l.__name__
     #print mutant_graph.order()
@@ -130,6 +136,8 @@ def mutation_tests():
         test_mutation_function(m)
 
 def fitness_tests():
+    g = FUN.random_gnp(10, .5)
+    #print FUN.fit_with_regularity(g)
     return
 
 """aggregate tests"""
@@ -139,7 +147,7 @@ def test_run_ga():
     sure that nothing errors out."""
     n = 10 # graph size
     pop_size = 100
-    threshold = 0.130
+    threshold = 1.130
     pop = [FUN.rand_graph(n, randint(n, n*(n-1)/2 + 1)) for _ in range(pop_size)]
     ga1 = GA(FUN.fit, FUN.mutate_add_then_remove_edges, FUN.cr6, 0.3, 0.2)
     results1 = ga1.run(pop, 20, threshold)
@@ -149,7 +157,7 @@ def test_run_ga():
     results3 = ga3.run(pop, 20, threshold)
 
 def run_tests():
-    for i in range(20):
+    for i in range(1):
         helper_tests()
         crossover_tests()
         mutation_tests()
@@ -160,12 +168,12 @@ run_tests()
 #test_remove_extra_edges()
 #run_tests()
 def test_fit_regularity():
-    g = graphs.RandomGNP(10, .5)
+    g = FUN.random_gnp(10, .5)
     print FUN.fit_regularity(g)
 
 def test_large_lovasz_subgraph():
 
-    g = graphs.RandomGNP(10, .5)
+    g = FUN.random_gnp(10, .5)
     #FUN._subgraph_mutate(g)
     old_lov_theta = g.lovasz_theta()
     for i in range(10):
