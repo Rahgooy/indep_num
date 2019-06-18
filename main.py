@@ -1,10 +1,8 @@
 #!/usr/bin/env sage -python
 
-import sys
 from ga import GA
 import functions as FUN
 from numpy.random import randint, rand
-from igraph import *
 from logger import *
 
 logger = Logger(sys.stdout, False)

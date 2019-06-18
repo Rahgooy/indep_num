@@ -1,8 +1,10 @@
 import sys
 import time
+from helpers import OutputColors as clr
 
 
 class Logger:
+
     def __init__(self, out_stream, log_profiling=False):
         self.out = out_stream
         self.log_profiling = log_profiling
@@ -15,9 +17,11 @@ class Logger:
         if fname not in self.profile:
             self.profile[fname] = {
                 'current': None,
-                'total': 0
+                'total': 0,
+                'calls': 0
             }
         self.profile[fname]['current'] = time.clock()
+        self.profile[fname]['calls'] += 1
 
     def finish(self, fname):
         if self.log_profiling:
@@ -25,18 +29,32 @@ class Logger:
         self.profile[fname]['total'] += time.clock() - self.profile[fname]['current']
 
     def print_profile(self):
+        self.out.write(clr.BLUE)
+        self.out.write("=" * 85 + "\n")
+        self.out.write("=" + " " * 35 + "Time Profiles" + " " * 35 + "=\n")
+        self.out.write("=" * 85 + "\n")
+        self.out.write(f"{'Function name':40s} {'# of calls':15s} {'time per call':15s} {'total time':15s}\n")
         for k in self.profile:
-            self.out.write(f"{k} : {self.profile[k]['total']:0.2f} seconds\n")
+            self.out.write(f"{k:40s} {self.profile[k]['calls']:<15d} ")
+            self.out.write(f"{self.profile[k]['total']/self.profile[k]['calls']:<15.2f} ")
+            self.out.write(f"{self.profile[k]['total']:<15.2f}\n")
+        self.out.write("=" * 85 + "\n")
+        self.out.write(clr.RESET)
 
     def __call__(self, *args, **kwargs):
         self.info(*args)
 
     def info(self, msg):
-        self.out.write('\033[32m' + time.asctime().split()[3] + ' - ' + '\033[35m' + msg + '\033[0m' + '\n')
+        self.out.write(clr.GREEN)
+        self.out.write(time.asctime().split()[3] + ' - ')
+        self.out.write(clr.MAGENTA)
+        self.out.write(clr.MAGENTA + msg + '\n')
+        self.out.write(clr.RESET)
 
 
 def wrap_with_log(logger, obj, names):
     """Wraps specified functions of an object with logger.start and logger.finish"""
+
     def wrap(func):
         def call(*args, **kwargs):
             logger.start(func.__name__)

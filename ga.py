@@ -2,9 +2,7 @@
 A simple implementation of genetic algorithm.
 """
 import numpy as np
-import sys
 from logger import *
-
 
 
 class GA(object):
