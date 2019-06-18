@@ -34,6 +34,7 @@ class Logger:
         self.out.write("=" + " " * 35 + "Time Profiles" + " " * 35 + "=\n")
         self.out.write("=" * 85 + "\n")
         self.out.write(f"{'Function name':40s} {'# of calls':15s} {'time per call':15s} {'total time':15s}\n")
+        self.out.write("-" * 85 + "\n")
         for k in self.profile:
             self.out.write(f"{k:40s} {self.profile[k]['calls']:<15d} ")
             self.out.write(f"{self.profile[k]['total']/self.profile[k]['calls']:<15.2f} ")
