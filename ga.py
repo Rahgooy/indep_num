@@ -2,7 +2,7 @@
 A simple implementation of genetic algorithm.
 """
 import numpy as np
-import sys
+from logger import *
 
 
 class GA(object):
@@ -72,7 +72,7 @@ class GA(object):
                 if self.fitness[j] >= gt and (self.pop[j], self.fitness[j]) not in good:
                     good.append((self.pop[j].copy(), self.fitness[j]))
                     self.log(
-                        "Found a good individual with fitness :" + str(self.fitness[j]) + "(best: " + str(best) + ")")
+                        f"Found a good individual with fitness :{self.fitness[j]:0.4f} (best: {best:0.4f})")
                 else:
                     break
 
