@@ -31,21 +31,23 @@ import numpy as np
 import cvxopt.base
 import cvxopt.solvers
 
+
 def parse_graph(G, complement=False):
     '''
     Takes a Sage graph, networkx graph, or adjacency matrix as argument, and returns
     vertex count and edge list for the graph and its complement.
     '''
-
-    if type(G).__module__+'.'+type(G).__name__ == 'networkx.classes.graph.Graph':
+    if type(G).__module__ + '.' + type(G).__name__ == 'networkx.classes.graph.Graph':
         import networkx
         G = networkx.convert_node_labels_to_integers(G)
         nv = len(G)
-        edges = [ (i,j) for (i,j) in G.edges() if i != j ]
-        c_edges = [ (i,j) for (i,j) in networkx.complement(G).edges() if i != j ]
+        edges = [(i, j) for (i, j) in G.edges() if i != j]
+        c_edges = [(i, j) for (i, j) in networkx.complement(G).edges() if i != j]
     else:
-        if type(G).__module__+'.'+type(G).__name__ == 'sage.graphs.graph.Graph':
+        if type(G).__module__ + '.' + type(G).__name__ == 'sage.graphs.graph.Graph':
             G = G.adjacency_matrix().numpy()
+        elif type(G).__module__ + '.' + type(G).__name__ == 'extended_graph.ExtendedGraph':
+            G = G.adjacency_matrix()
 
         G = np.array(G)
 
@@ -53,18 +55,19 @@ def parse_graph(G, complement=False):
         assert len(G.shape) == 2 and G.shape[1] == nv
         assert np.all(G == G.T)
 
-        edges   = [ (j,i) for i in range(nv) for j in range(i) if G[i,j] ]
-        c_edges = [ (j,i) for i in range(nv) for j in range(i) if not G[i,j] ]
+        edges = [(j, i) for i in range(nv) for j in range(i) if G[i, j]]
+        c_edges = [(j, i) for i in range(nv) for j in range(i) if not G[i, j]]
 
-    for (i,j) in edges:
+    for (i, j) in edges:
         assert i < j
-    for (i,j) in c_edges:
+    for (i, j) in c_edges:
         assert i < j
 
     if complement:
         (edges, c_edges) = (c_edges, edges)
 
     return (nv, edges, c_edges)
+
 
 def lovasz_theta(G, long_return=False, complement=False):
     '''
@@ -96,13 +99,13 @@ def lovasz_theta(G, long_return=False, complement=False):
     if nv == 1:
         return 1.0
 
-    c = cvxopt.matrix([0.0]*ne + [1.0])
-    G1 = cvxopt.spmatrix(0, [], [], (nv*nv, ne+1))
+    c = cvxopt.matrix([0.0] * ne + [1.0])
+    G1 = cvxopt.spmatrix(0, [], [], (nv * nv, ne + 1))
     for (k, (i, j)) in enumerate(edges):
-        G1[i*nv+j, k] = 1
-        G1[j*nv+i, k] = 1
+        G1[i * nv + j, k] = 1
+        G1[j * nv + i, k] = 1
     for i in range(nv):
-        G1[i*nv+i, ne] = 1
+        G1[i * nv + i, ne] = 1
 
     G1 = -G1
     h1 = -cvxopt.matrix(1.0, (nv, nv))
@@ -113,9 +116,10 @@ def lovasz_theta(G, long_return=False, complement=False):
         theta = sol['x'][ne]
         Z = np.array(sol['ss'][0])
         B = np.array(sol['zs'][0])
-        return { 'theta': theta, 'Z': Z, 'B': B }
+        return {'theta': theta, 'Z': Z, 'B': B}
     else:
         return sol['x'][ne]
+
 
 def schrijver_theta(G, long_return=False, complement=False):
     '''
@@ -142,35 +146,35 @@ def schrijver_theta(G, long_return=False, complement=False):
 
     (nv, G_edges, Gc_edges) = parse_graph(G, complement)
 
-    neG  = len(G_edges)
+    neG = len(G_edges)
     neGc = len(Gc_edges)
 
     # This case needs to be handled specially.
     if nv == 1:
         return 1.0
 
-    assert neG + neGc == nv*(nv-1) // 2
+    assert neG + neGc == nv * (nv - 1) // 2
 
-    c = cvxopt.matrix([0.0]*(neG+neGc) + [1.0])
-    clen = neG+neGc+1
+    c = cvxopt.matrix([0.0] * (neG + neGc) + [1.0])
+    clen = neG + neGc + 1
 
     G0 = cvxopt.spmatrix(0, [], [], (neGc, clen))
     for i in range(neGc):
         G0[i, i] = 1
     h0 = cvxopt.matrix(0.0, (neGc, 1))
 
-    G1 = cvxopt.spmatrix(0, [], [], (nv*nv, clen))
+    G1 = cvxopt.spmatrix(0, [], [], (nv * nv, clen))
     k = 0
     for (i, j) in Gc_edges:
-        G1[i*nv+j, k] = 1
-        G1[j*nv+i, k] = 1
+        G1[i * nv + j, k] = 1
+        G1[j * nv + i, k] = 1
         k += 1
     for (i, j) in G_edges:
-        G1[i*nv+j, k] = 1
-        G1[j*nv+i, k] = 1
+        G1[i * nv + j, k] = 1
+        G1[j * nv + i, k] = 1
         k += 1
     for i in range(nv):
-        G1[i*nv+i, k] = 1
+        G1[i * nv + i, k] = 1
     k += 1
     assert k == clen
 
@@ -180,12 +184,13 @@ def schrijver_theta(G, long_return=False, complement=False):
     sol = cvxopt.solvers.sdp(c, Gl=G0, hl=h0, Gs=[G1], hs=[h1])
 
     if long_return:
-        theta = sol['x'][clen-1]
+        theta = sol['x'][clen - 1]
         Z = np.array(sol['ss'][0])
         B = np.array(sol['zs'][0])
-        return { 'theta': theta, 'Z': Z, 'B': B }
+        return {'theta': theta, 'Z': Z, 'B': B}
     else:
-        return sol['x'][clen-1]
+        return sol['x'][clen - 1]
+
 
 def szegedy_theta(G, long_return=False, complement=False):
     '''
@@ -217,19 +222,19 @@ def szegedy_theta(G, long_return=False, complement=False):
     if nv == 1:
         return 1.0
 
-    c = cvxopt.matrix([0.0]*ne + [1.0])
+    c = cvxopt.matrix([0.0] * ne + [1.0])
 
-    G0 = cvxopt.spmatrix(0, [], [], (ne, ne+1))
+    G0 = cvxopt.spmatrix(0, [], [], (ne, ne + 1))
     for i in range(ne):
         G0[i, i] = -1
     h0 = cvxopt.matrix(0.0, (ne, 1))
 
-    G1 = cvxopt.spmatrix(0, [], [], (nv*nv, ne+1))
+    G1 = cvxopt.spmatrix(0, [], [], (nv * nv, ne + 1))
     for (k, (i, j)) in enumerate(edges):
-        G1[i*nv+j, k] = 1
-        G1[j*nv+i, k] = 1
+        G1[i * nv + j, k] = 1
+        G1[j * nv + i, k] = 1
     for i in range(nv):
-        G1[i*nv+i, ne] = 1
+        G1[i * nv + i, ne] = 1
 
     G1 = -G1
     h1 = -cvxopt.matrix(1.0, (nv, nv))
@@ -240,22 +245,29 @@ def szegedy_theta(G, long_return=False, complement=False):
         theta = sol['x'][ne]
         Z = np.array(sol['ss'][0])
         B = np.array(sol['zs'][0])
-        return { 'theta': theta, 'Z': Z, 'B': B }
+        return {'theta': theta, 'Z': Z, 'B': B}
     else:
         return sol['x'][ne]
+
 
 # Aliases
 theta = lovasz_theta
 thm = schrijver_theta
 thp = szegedy_theta
 
+
 # Functions on the complement of a graph
 def thbar(G, long_return=False):
     return lovasz_theta(G, long_return, complement=True)
+
+
 def thmbar(G, long_return=False):
     return schrijver_theta(G, long_return, complement=True)
+
+
 def thpbar(G, long_return=False):
     return szegedy_theta(G, long_return, complement=True)
+
 
 if __name__ == "__main__":
     print("Running doctests.")
@@ -263,6 +275,7 @@ if __name__ == "__main__":
     cvxopt.solvers.options['abstol'] = float(1e-10)
     cvxopt.solvers.options['reltol'] = float(1e-10)
     import doctest
+
     doctest.testmod()
     print('Done.')
 
