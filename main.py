@@ -1,9 +1,9 @@
-#!/usr/bin/env sage -python
-
+#!/usr/bin/python3
 from ga import GA
 import functions as FUN
 from numpy.random import randint, rand
 from logger import *
+print ("hellooo")
 
 logger = Logger(sys.stdout, False)
 n = 10  # graph size

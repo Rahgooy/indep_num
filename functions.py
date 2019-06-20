@@ -16,7 +16,8 @@ def edge_list_from_dict(dict):
     edge_list = []
     for k in dict.keys():
         for v in dict[k]:
-            edge_list.append((k, v))
+            if k<v:
+                edge_list.append((k, v))
     return edge_list
 
 
@@ -205,9 +206,9 @@ def mu(g):
         u = randint(0, g.order())
     if g.has_edge(u, v):
         if g.size() > 1:
-            g.delete_edge(u, v)
+            g.delete_edges([u, v])
     else:
-        g.add_edge(u, v)
+        g.add_edges([(u, v)])
     # r = np.random.rand()
     # if r<0.01:
     #     g, _ = remove_extra_edges(g)
@@ -226,7 +227,7 @@ def add_edge_to_max_indep_set(g):
     u = randint(0, len(indp))
     while u == v:
         u = randint(0, len(indp))
-    g.add_edge(u, v)
+    g.add_edges([(u, v)])
     return g
 
 
@@ -243,7 +244,7 @@ def mutate_avoid_large_subgraph(g):
         u = np.random.choice(available_vertices)
     if g.has_edge(u, v):
         if g.size() > 1:
-            g.delete_edge(u, v)
+            g.delete_edges([u, v])
     else:
         g.add_edge(u, v)
 
@@ -253,7 +254,7 @@ def mutate_avoid_large_subgraph(g):
 def mutate_add_then_remove_edges(g):
     """Adds edges randomly, then performs remove_extra_edges."""
     g = g.copy()
-    g_c = g.complementer()
+    g_c = g.complementer().simplify()
     edges = g_c.edges()
     shuffle(edges)
     for e in edges[:15]:
@@ -424,6 +425,7 @@ def cr8(g1, g2):
     """ adds an edge if there is an edge in g1 or in g2"""
     new_graph = g1.copy()
     for e in g2.edges():
-        new_graph.add_edges([e])
+        if not new_graph.has_edge(e[0],e[1]):
+            new_graph.add_edges([e])
     new_graph, _ = remove_extra_edges(new_graph)
     return new_graph

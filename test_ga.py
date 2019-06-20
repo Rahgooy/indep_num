@@ -55,6 +55,7 @@ def test_crossover_function(l):
     g2 = FUN.random_gnp(20, .5)
     child_graph = l(g1, g2)
     assert child_graph.order() == 20
+    assert child_graph.is_simple()
 def test_cr3():
     """This test does not work."""
     for g1 in graph_list:
@@ -77,7 +78,7 @@ def test_eigen_fitness():
     g1 = graphs.PetersenGraph()
     g2 = graphs.ButterflyGraph()
     g = k + g2
-    print FUN.fit_eigen_values(g)
+    print(FUN.fit_eigen_values(g))
 
 def test_remove_extra_edges():
     """Checks that remove_extra_edges does not affect the independence number."""
@@ -108,7 +109,7 @@ def test_update_independent_sets():
 def test_add_edge_to_max_indep_set():
     g = FUN.random_gnp(10, .5)
     new_graph = FUN.add_edge_to_max_indep_set(g)
-    print "test complete"
+    print("test complete")
 
 """aggregate tests"""
 def helper_tests():
@@ -120,15 +121,17 @@ def crossover_tests():
     crossovers = [FUN.cr4,FUN.cr5,FUN.cr6,FUN.cr7,FUN.cr8]
     #These are the crossover functions which preserve the order of the graph.
     for c in crossovers:
+        #print(c.__name__)
         test_crossover_function(c)
     #test_cr4()
 def test_mutation_function(l):
     """expect l to be a mutation function."""
     g = FUN.random_gnp(20, .5)
     mutant_graph = l(g)
-    #print l.__name__
+    print(l.__name__)
     #print mutant_graph.order()
     assert mutant_graph.order() == 20
+    assert mutant_graph.is_simple()
 
 def mutation_tests():
     mutation_functions = [FUN.mu, FUN.mutate_avoid_large_subgraph,FUN.mutate_add_then_remove_edges, FUN.add_edge_to_max_indep_set]
@@ -169,7 +172,7 @@ run_tests()
 #run_tests()
 def test_fit_regularity():
     g = FUN.random_gnp(10, .5)
-    print FUN.fit_regularity(g)
+    print(FUN.fit_regularity(g))
 
 def test_large_lovasz_subgraph():
 
@@ -178,15 +181,15 @@ def test_large_lovasz_subgraph():
     old_lov_theta = g.lovasz_theta()
     for i in range(10):
         FUN.mutate_avoid_large_subgraph(g)
-    print "old theta: ", old_lov_theta
+    print("old theta: ", old_lov_theta)
     ans = LOV.lovasz_theta(g, long_return = True)
     theta = ans['theta']
     B = ans['B']
-    print theta, B
+    print(theta, B)
     diag = np.diagonal(B)
     #values = [b**0.5 for b in diag]
-    print diag * theta
-    print sum(diag*theta)
+    print(diag * theta)
+    print(sum(diag*theta))
     assert abs(sum(diag*theta) - theta) < 0.01
 #test_fit_regularity()
 #test_remove_extra_edges()
