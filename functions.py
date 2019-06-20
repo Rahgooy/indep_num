@@ -244,7 +244,7 @@ def mutate_avoid_large_subgraph(g):
         u = np.random.choice(available_vertices)
     if g.has_edge(u, v):
         if g.size() > 1:
-            g.delete_edges([u, v])
+            g.delete_edges([(u, v)])
     else:
         g.add_edge(u, v)
 

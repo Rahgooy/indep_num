@@ -3,12 +3,11 @@ from ga import GA
 import functions as FUN
 from numpy.random import randint, rand
 from logger import *
-print ("hellooo")
 
 logger = Logger(sys.stdout, False)
 n = 10  # graph size
 pop_size = 100
-threshold = 1.9
+threshold = 1.2
 pop = [FUN.rand_graph(n, randint(n, n * (n - 1) / 2 + 1)) for _ in range(pop_size)]
 
 ga = GA(FUN.fit_with_regularity, FUN.mutate_avoid_large_subgraph, FUN.cr5, 0.3, 0.2,
@@ -19,7 +18,7 @@ wrap_with_log(logger, ga, ['run', '_select', 'cr', 'mu', 'fit'])
 results = ga.run(pop, 100, threshold)
 logger.print_profile()
 results = sorted(results, key=lambda x: -x[1])
-with open("resutls.txt", "w") as f:
+with open("results.txt", "w") as f:
     for g, fit in results[:5]:
         f.write(str(g.adjacency_matrix()))
         f.write("\nTheta: " + str(g.lovasz_theta()))
