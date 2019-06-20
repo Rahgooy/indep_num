@@ -1,0 +1,5 @@
+This command will create a docker image from the Dockerfile.
+docker build --tag ga_docker_image .
+
+This command will run the docker image, which will start main.py
+sudo docker run -itv "$(pwd):/app" ga_docker_image
