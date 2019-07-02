@@ -16,8 +16,6 @@ class ExtendedGraph(Graph):
         return self.vs.indices
 
     def edges(self):
-        #print self.es
-        #print [(e.source, e.target) for e in EdgeSeq(self)]
         return [(e.source, e.target) for e in EdgeSeq(self)]
     def order(self):
         return self.vcount()
