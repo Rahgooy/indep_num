@@ -16,8 +16,6 @@ class ExtendedGraph(Graph):
         return self.vs.indices
 
     def edges(self):
-        #print self.es
-        #print [(e.source, e.target) for e in EdgeSeq(self)]
         return [(e.source, e.target) for e in EdgeSeq(self)]
     def order(self):
         return self.vcount()
@@ -26,7 +24,13 @@ class ExtendedGraph(Graph):
         return self.get_adjacency().data
 
     def has_edge(self, u, v):
-        return (u, v) in self.get_adjedgelist()
+        if u<v:
+            return (u, v) in self.get_edgelist()
+        else:
+            return (v, u) in self.get_edgelist()
+
+    def size(self):
+        return len(self.get_edgelist())
 
     def asExtended(g):
         new_g = ExtendedGraph(g.vcount())
