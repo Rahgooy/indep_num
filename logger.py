@@ -52,19 +52,23 @@ class Logger:
         self.out.write(clr.MAGENTA + msg + '\n')
         self.out.write(clr.RESET)
 
+    def writeln(self, msg):
+        self.out.write(clr.BLUE)
+        self.out.write(msg + '\n')
+        self.out.write(clr.RESET)
 
-def wrap_with_log(logger, obj, names):
+
+global_logger = Logger(sys.stdout)
+
+
+def wrap_with_log(func, logger=global_logger):
     """Wraps specified functions of an object with logger.start and logger.finish"""
 
-    def wrap(func):
-        def call(*args, **kwargs):
-            logger.start(func.__name__)
-            result = func(*args, **kwargs)
-            logger.finish(func.__name__)
-            return result
+    def wrap(*args, **kwargs):
+        logger.start(func.__name__)
+        result = func(*args, **kwargs)
+        logger.finish(func.__name__)
+        return result
 
-        return call
-
-    for f in names:
-        wrapped = wrap(getattr(obj, f))
-        setattr(obj, f, wrapped)
+    wrap.__name__ = func.__name__
+    return wrap
