@@ -25,10 +25,7 @@ class GA(object):
         proportion of mutations
     """
 
-    def __init__(self, fit, mu, cr, p_cr, p_elite,
-                 cache=True,
-                 cache_key=lambda x: x.__hash__()
-                 ):
+    def __init__(self, fit, mu, cr, p_cr, p_elite):
         super(GA, self).__init__()
         self.fit = fit
         self.mu = mu
@@ -37,10 +34,6 @@ class GA(object):
         self.p_cr = p_cr
         self.fitness = []
         self.log = global_logger
-        self.cache_fitness = cache
-        self.cache = {}
-        self.cache_stats = {"hit": 0, "miss": 0, }
-        self.cache_key = cache_key
 
     @wrap_with_log
     def run(self, pop, iter, gt):
@@ -111,17 +104,7 @@ class GA(object):
         """
         self.fitness = []
         for i in range(self.n):
-            if self.cache_fitness:
-                key = self.cache_key(self.pop[i])
-                if key in self.cache:
-                    self.cache_stats["hit"] += 1
-                else:
-                    self.cache[key] = self.fit(self.pop[i])
-                    self.cache_stats["miss"] += 1
-                f = self.cache[key]
-            else:
-                f = self.fit(self.pop[i])
-
+            f = self.fit(self.pop[i])
             self.fitness.append(f)
 
         # roulette wheel selection

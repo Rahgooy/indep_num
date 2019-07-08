@@ -8,8 +8,6 @@ from caching import wrap_extended_graph_method_with_cache as wrap_with_cache
 class ExtendedGraph(Graph):
     def __init__(self, *args, **kwds):
         super(ExtendedGraph, self).__init__(args[0])
-        self.cache = {}
-        self.key = lambda g: str(g.adjacency_matrix()).__hash__()
 
     @wrap_with_log
     @wrap_with_cache
