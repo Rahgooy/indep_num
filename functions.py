@@ -7,19 +7,21 @@ import lovasz as LOV
 from numpy.random import randint, rand
 from extended_graph import *
 from random import shuffle
+from caching import wrap_extended_graph_method_with_cache as wrap_with_cache
+from logger import wrap_with_log
 
 """Helper Functions"""
 
-
+@wrap_with_log
 def edge_list_from_dict(dict):
     edge_list = []
     for k in dict.keys():
         for v in dict[k]:
-            if k<v:
+            if k < v:
                 edge_list.append((k, v))
     return edge_list
 
-
+@wrap_with_log
 def rand_graph(n, m):
     """Generate a random graph with n vertices and m edges"""
     g = {v: [] for v in range(n)}
@@ -33,11 +35,12 @@ def rand_graph(n, m):
             g[x].append(y)
             i += 1
     r_graph = ExtendedGraph(edge_list_from_dict(g))
-    while r_graph.order()<n:
+    while r_graph.order() < n:
         r_graph.add_vertex()
     return r_graph
 
 
+@wrap_with_log
 def random_gnp(n, p):
     """Generate a random graph where each edge has probability p"""
     dict = {}
@@ -49,13 +52,14 @@ def random_gnp(n, p):
                 neighbors.append(b)
         dict[a] = neighbors
     g = ExtendedGraph(edge_list_from_dict(dict))
-    while (g.order()<n): #this can occur if the random graph is not connected
+    while (g.order() < n):  # this can occur if the random graph is not connected
         g.add_vertex()
-    assert g.order()==n
+    assert g.order() == n
     return g
 
 
-def remove_extra_edges(g, distinguished = False):
+@wrap_with_log
+def remove_extra_edges(g, distinguished=False):
     """Calculates the maximal independent sets of g.
     If an edge doesnt intersect a maximal independent set, it can be removed
     without increasing the size of the independence number.
@@ -66,14 +70,15 @@ def remove_extra_edges(g, distinguished = False):
     new_graph = g.copy()
     edges = len(new_graph.edges())
     indep_sets = None
-    new_graph, indep_sets = _remove_extra_edge(new_graph, indep_sets, distinguished = distinguished)
+    new_graph, indep_sets = _remove_extra_edge(new_graph, indep_sets, distinguished=distinguished)
     while (len(new_graph.edges()) != edges):
         edges = len(new_graph.edges())
         new_graph, indep_sets = _remove_extra_edge(new_graph, indep_sets)
-    assert(new_graph.order()==order)
+    assert (new_graph.order() == order)
     return new_graph, indep_sets
 
 
+@wrap_with_log
 def _can_remove(e, max_indep_sets):
     """Returns true if we can remove this edge without affecting the independence number.
     If e[0] is in some max independent set, i, then i-{e[0]} U {e[1]} must be another max indep. set
@@ -85,6 +90,7 @@ def _can_remove(e, max_indep_sets):
     return True
 
 
+@wrap_with_log
 def _update_indep_sets(g, e, indep_sets):
     """g is the new graph, with edge e removed.
     e is the edge which was removed,
@@ -106,7 +112,8 @@ def _update_indep_sets(g, e, indep_sets):
     return new_indep_sets
 
 
-def _remove_extra_edge(g, indep_sets=None, distinguished = False):
+@wrap_with_log
+def _remove_extra_edge(g, indep_sets=None, distinguished=False):
     order = g.order()
     """Returns a new graph by removing an edge from g. """
     # dict = BON.dict_from_adjacency_matrix(g.complement())
@@ -130,10 +137,12 @@ def _remove_extra_edge(g, indep_sets=None, distinguished = False):
             new_graph.delete_edges(e)
             new_indep_sets = _update_indep_sets(new_graph, e, indep_sets)
             return new_graph, new_indep_sets
-    assert(order == g.order())
+    assert (order == g.order())
     return new_graph, indep_sets
 
 
+@wrap_with_log
+@wrap_with_cache
 def _vertex_cost_list(g):
     order = g.order()
     """Returns a list of pairs [vertex_number,cost] sorted by cost."""
@@ -143,10 +152,11 @@ def _vertex_cost_list(g):
     costs = np.diagonal(witness) * theta
     costs = enumerate(costs)  # adds an index
     costs = sorted(costs, key=lambda x: -x[1])  # sort by the cost
-    assert(order == g.order())
+    assert (order == g.order())
     return costs
 
 
+@wrap_with_log
 def _large_lovasz_subgraph(g, fraction=0.5):
     """Calculates lovasz theta of g, together with a witness.
     We use the costs of the vertices to identify a subgraph with a large lovasz theta.
@@ -178,13 +188,17 @@ def select_bad_vertex(g):
 """Fitness Functions"""
 
 
+@wrap_with_log
+@wrap_with_cache
 def fit(g):
     order = g.order()
     value = g.lovasz_theta() / g.independence_number()
-    assert(g.order()==order)
+    assert (g.order() == order)
     return value
 
 
+@wrap_with_log
+@wrap_with_cache
 def fit_regularity(g):
     """ returns the reciprocal of the standard deviation of the degree list """
     """ We take the reciprocal so that regular graphs are the most fit."""
@@ -193,11 +207,15 @@ def fit_regularity(g):
     return 1 / (1 + deviation)
 
 
+@wrap_with_log
+@wrap_with_cache
 def fit_with_regularity(g):
     """a weighted average of fitness and regularity."""
     return 0.90 * fit(g) + 0.1 * fit_regularity(g)
 
 
+@wrap_with_log
+@wrap_with_cache
 def fit_eigen_values(g):
     """Returns the ratio between the largest and second largest abs. value eigenvectors."""
     """This doesn't give good results, because we usually must assume the graphs are regular."""
@@ -211,6 +229,7 @@ def fit_eigen_values(g):
 """Mutation Functions"""
 
 
+@wrap_with_log
 def mu(g):
     """Choose a random edge uv, if exists remove it. If not, add it"""
     order = g.order()
@@ -225,10 +244,11 @@ def mu(g):
             g.delete_edges([(u, v)])
     else:
         g.add_edges([(u, v)])
-    assert(order==g.order())
+    assert (order == g.order())
     return g
 
 
+@wrap_with_log
 def add_edge_to_max_indep_set(g):
     """Chooses a random maximal independent set to add an edge to"""
     order = g.order()
@@ -242,11 +262,12 @@ def add_edge_to_max_indep_set(g):
     u = randint(0, len(indp))
     while u == v:
         u = randint(0, len(indp))
-    g.add_edges([(indp[u],indp[v])])
-    assert(g.order()==order)
+    g.add_edges([(indp[u], indp[v])])
+    assert (g.order() == order)
     return g
 
 
+@wrap_with_log
 def mutate_avoid_large_subgraph(g):
     order = g.order()
     """Finds the subgraph which contributes the most to theta.
@@ -264,19 +285,23 @@ def mutate_avoid_large_subgraph(g):
             g.delete_edges([(u, v)])
     else:
         g.add_edge(u, v)
-    assert(order == g.order())
+    assert (order == g.order())
     return g
 
+
+@wrap_with_log
 def mutate_remove_then_remove_edges(g):
     """removes one edge, then performs remove extra_edges."""
     order = g.order()
     g = g.copy()
-    e = g.edges()[randint(0,len(g.edges()))]
+    e = g.edges()[randint(0, len(g.edges()))]
     g.delete_edges([e])
     g, _ = remove_extra_edges(g)
-    assert(g.order()==order)
+    assert (g.order() == order)
     return g
 
+
+@wrap_with_log
 def mutate_add_then_remove_edges(g):
     """Adds edges randomly, then performs remove_extra_edges."""
     order = g.order()
@@ -284,11 +309,13 @@ def mutate_add_then_remove_edges(g):
     g_c = g.complementer().simplify()
     edges = g_c.edges()
     shuffle(edges)
-    g.add_edges(edges[:(3*order//2)])
+    g.add_edges(edges[:(3 * order // 2)])
     g, _ = remove_extra_edges(g)
-    assert(g.order()==order)
+    assert (g.order() == order)
     return g
 
+
+@wrap_with_log
 def mutate_composite(g):
     """Either uses mutate_add_then_remove_edges or mutate_remove_then_remove_edges"""
     r = np.random.rand()
@@ -297,34 +324,38 @@ def mutate_composite(g):
     else:
         return mutate_add_then_remove_edges(g)
 
+
+@wrap_with_log
 def mutate_distinguished_vertex(g):
     order = g.order()
     """Assumes the last vertex of g was just added.
     adds an edge between the distinguished vertex and other vertices with probability 0.2
     Then removes unnecessary edges."""
     distinguished_vertex = g.vertices()[-1]
-    for v in range(g.order()-1):
+    for v in range(g.order() - 1):
         r = np.random.rand()
-        if r<0.2:
-            g.add_edge(v,distinguished_vertex)
+        if r < 0.2:
+            g.add_edge(v, distinguished_vertex)
     g.simplify()
-    g,_ = remove_extra_edges(g, distinguished = True )
+    g, _ = remove_extra_edges(g, distinguished=True)
     # other_vertex = randint(0,g.order()-1)
     # if g.has_edge(other_vertex, distinguished_vertex):
     #     g.delete_edges([(other_vertex, distinguished_vertex)])
     # else:
     #     g.add_edge(other_vertex, distinguished_vertex)
-    assert(g.order()==order)
+    assert (g.order() == order)
     return g
 
+
+@wrap_with_log
 def mutate_add_another_vertex(g):
     """Adds another vertex to the graph.
     Chooses a vertex from each maximal independent set as a neighbor to the new vertex.
     """
     new_graph = g.copy()
-    #vertex_assignments = np.random.randint(2, size=g.order())
+    # vertex_assignments = np.random.randint(2, size=g.order())
     indep_sets = g.largest_independent_vertex_sets()
-    neighbors = [a[randint(0,len(a))] for a in indep_sets]
+    neighbors = [a[randint(0, len(a))] for a in indep_sets]
     new_graph.add_vertex()
     new_graph.add_edges([(n, new_graph.vertices()[-1]) for n in neighbors])
     new_graph = new_graph.simplify()
@@ -333,9 +364,11 @@ def mutate_add_another_vertex(g):
     #         new_graph.add_edge(v, new_graph.vertices()[-1])
     return new_graph
 
+
 """Crossover Functions"""
 
 
+@wrap_with_log
 def cr4(g1, g2):
     """Keeps edges that are in both, flips a coin for edges that are in one but not the other."""
     new_graph = g1.copy()
@@ -350,10 +383,11 @@ def cr4(g1, g2):
     return new_graph
 
 
+@wrap_with_log
 def cr5(g1, g2):
     """Flip a coin for each vertex. A pair of vertices whose smaller one is labeled g1
     is an edge iff g1 has that edge. """
-    assert(g1.order()==g2.order())
+    assert (g1.order() == g2.order())
     vertex_assignments = np.random.randint(2, size=g1.order())
     # new_graph = graphs.CompleteGraph(g1.order()).complement()
     new_graph = ExtendedGraph([])
@@ -368,10 +402,11 @@ def cr5(g1, g2):
                 new_graph.add_edge(v, k)
 
     new_graph, _ = remove_extra_edges(new_graph)
-    assert(new_graph.order()==g1.order())
+    assert (new_graph.order() == g1.order())
     return new_graph
 
 
+@wrap_with_log
 def cr6(g1, g2):
     """Orders the vertices of g1 and g2 according to their contribution to lovasz theta.
     Find subgraphs sg1 and sg2 such that sg1.order()+sg2.order()==g1.order()
@@ -379,7 +414,7 @@ def cr6(g1, g2):
     add all edges between sg1 and sg2, then remove edges which don't affect the independence number.
     This function assumes g1 and g2 have the same number of vertices. Might fail otherwise.
     """
-    assert(g1.order()==g2.order())
+    assert (g1.order() == g2.order())
     costs_g1 = _vertex_cost_list(g1)
     costs_g2 = _vertex_cost_list(g2)
     index_g1 = 0
@@ -392,7 +427,7 @@ def cr6(g1, g2):
     sg1 = g1.subgraph([c[0] for c in costs_g1[:index_g1]])
     sg2 = g2.subgraph([c[0] for c in costs_g2[:index_g2]])
 
-    #child_graph = sg1 + sg2  # These vertices are labeled [0..n]
+    # child_graph = sg1 + sg2  # These vertices are labeled [0..n]
     child_graph = sg1.disjoint_union(sg2)
     for v1, v2 in itertools.product(range(sg1.order()), range(sg2.order())):
         child_graph.add_edge(v1, v2 + sg1.order())
@@ -402,12 +437,13 @@ def cr6(g1, g2):
     return child_graph
 
 
+@wrap_with_log
 def cr7(g1, g2):
     """Aligns the graphs according to vertex cost.
     When an edge is present in both graphs, we keep it.
     When it is only in one graph, we flip a coin.
     """
-    assert(g1.order()==g2.order())
+    assert (g1.order() == g2.order())
     costs_g1 = _vertex_cost_list(g1)
     g1_new_order = [c[0] for c in costs_g1]  # list determines how to align the vertices of g1
     costs_g2 = _vertex_cost_list(g2)
@@ -433,32 +469,35 @@ def cr7(g1, g2):
                         neighbors.append(t)
         dict[v] = neighbors
     new_graph = ExtendedGraph(edge_list_from_dict(dict))
-    while(new_graph.order()<g1.order()):
+    while (new_graph.order() < g1.order()):
         new_graph.add_vertex()
-    assert(new_graph.order()==g1.order())
+    assert (new_graph.order() == g1.order())
     return new_graph
 
 
+@wrap_with_log
 def cr8(g1, g2):
     """ adds an edge if there is an edge in g1 or in g2"""
-    assert(g1.order()==g2.order())
+    assert (g1.order() == g2.order())
     new_graph = g1.copy()
     for e in g2.edges():
-        if not new_graph.has_edge(e[0],e[1]):
+        if not new_graph.has_edge(e[0], e[1]):
             new_graph.add_edges([e])
     new_graph, _ = remove_extra_edges(new_graph)
-    assert(new_graph.order()==g1.order())
+    assert (new_graph.order() == g1.order())
     return new_graph
 
+
+@wrap_with_log
 def cr_distinguished(g1, g2):
     """same as cr8 but for distinguished vertex"""
-    assert(g1.order()==g2.order())
+    assert (g1.order() == g2.order())
     new_graph = g1.copy()
     for e in g2.edges():
-        if not new_graph.has_edge(e[0],e[1]):
+        if not new_graph.has_edge(e[0], e[1]):
             new_graph.add_edges([e])
-    new_graph, _ = remove_extra_edges(new_graph, distinguished = True)
-    assert(new_graph.order()==g1.order())
+    new_graph, _ = remove_extra_edges(new_graph, distinguished=True)
+    assert (new_graph.order() == g1.order())
     return new_graph
 # def cr_distinguished_vertex(g1,g2):
 #     """Assumes that the subgraph induced by deleting the last vertex

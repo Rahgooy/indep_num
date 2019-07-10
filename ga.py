@@ -2,7 +2,7 @@
 A simple implementation of genetic algorithm.
 """
 import numpy as np
-from logger import *
+from logger import global_logger, wrap_with_log
 
 
 class GA(object):
@@ -25,11 +25,7 @@ class GA(object):
         proportion of mutations
     """
 
-    def __init__(self, fit, mu, cr, p_cr, p_elite,
-                 log_func=lambda x: sys.stdout.write(x + '\n'),
-                 cache=True,
-                 cache_key=lambda x: x.__hash__()
-                 ):
+    def __init__(self, fit, mu, cr, p_cr, p_elite):
         super(GA, self).__init__()
         self.fit = fit
         self.mu = mu
@@ -37,12 +33,9 @@ class GA(object):
         self.p_elite = p_elite
         self.p_cr = p_cr
         self.fitness = []
-        self.log = log_func
-        self.cache_fitness = cache
-        self.cache = {}
-        self.cache_stats = {"hit": 0, "miss": 0, }
-        self.cache_key = cache_key
+        self.log = global_logger
 
+    @wrap_with_log
     def run(self, pop, iter, gt):
         """Runs the genetic algorithm and returns the results.
 
@@ -102,6 +95,7 @@ class GA(object):
 
         return good
 
+    @wrap_with_log
     def _select(self):
         """
         Samples the population according to their fitness values then updates
@@ -110,17 +104,7 @@ class GA(object):
         """
         self.fitness = []
         for i in range(self.n):
-            if self.cache_fitness:
-                key = self.cache_key(self.pop[i])
-                if key in self.cache:
-                    self.cache_stats["hit"] += 1
-                else:
-                    self.cache[key] = self.fit(self.pop[i])
-                    self.cache_stats["miss"] += 1
-                f = self.cache[key]
-            else:
-                f = self.fit(self.pop[i])
-
+            f = self.fit(self.pop[i])
             self.fitness.append(f)
 
         # roulette wheel selection
