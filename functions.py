@@ -141,19 +141,7 @@ def _remove_extra_edge(g, indep_sets=None, distinguished=False):
     return new_graph, indep_sets
 
 
-@wrap_with_log
-@wrap_with_cache
-def _vertex_cost_list(g):
-    order = g.order()
-    """Returns a list of pairs [vertex_number,cost] sorted by cost."""
-    solution = LOV.lovasz_theta(g, long_return=True)
-    theta = solution['theta']
-    witness = solution['B']
-    costs = np.diagonal(witness) * theta
-    costs = enumerate(costs)  # adds an index
-    costs = sorted(costs, key=lambda x: -x[1])  # sort by the cost
-    assert (order == g.order())
-    return costs
+
 
 
 @wrap_with_log
@@ -162,7 +150,7 @@ def _large_lovasz_subgraph(g, fraction=0.5):
     We use the costs of the vertices to identify a subgraph with a large lovasz theta.
     Then, we mutate one of the other edges."""
     theta = g.lovasz_theta()
-    costs = _vertex_cost_list(g)
+    costs = g.vertex_cost_list()
     valuable_vertices = []
     cur_sum = 0
     index = 0
@@ -176,7 +164,7 @@ def select_bad_vertex(g):
     """Uses a roulette selection to find a vertex which contributes little to lovasz theta.
        Returns the bad vertex and its cost.
     """
-    costs = _vertex_cost_list(g)
+    costs = g.vertex_cost_list()
     values = [1/(c[1]**2+0.001) for c in costs]
     cdf = np.cumsum(values)
     cdf = cdf / cdf[-1]
@@ -415,8 +403,8 @@ def cr6(g1, g2):
     This function assumes g1 and g2 have the same number of vertices. Might fail otherwise.
     """
     assert (g1.order() == g2.order())
-    costs_g1 = _vertex_cost_list(g1)
-    costs_g2 = _vertex_cost_list(g2)
+    costs_g1 = g1.vertex_cost_list()
+    costs_g2 = g2.vertex_cost_list()
     index_g1 = 0
     index_g2 = 0
     while (index_g1 + index_g2 < g1.order()):  # after this loop,
@@ -444,9 +432,9 @@ def cr7(g1, g2):
     When it is only in one graph, we flip a coin.
     """
     assert (g1.order() == g2.order())
-    costs_g1 = _vertex_cost_list(g1)
+    costs_g1 = g1.vertex_cost_list()
     g1_new_order = [c[0] for c in costs_g1]  # list determines how to align the vertices of g1
-    costs_g2 = _vertex_cost_list(g2)
+    costs_g2 = g2.vertex_cost_list()
     g2_new_order = [c[0] for c in costs_g2]
     # g2_new_order.reverse()
     dict = {}
