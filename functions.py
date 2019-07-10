@@ -162,6 +162,18 @@ def _large_lovasz_subgraph(g, fraction=0.5):
         index += 1
     return valuable_vertices
 
+def select_bad_vertex(g):
+    """Uses a roulette selection to find a vertex which contributes little to lovasz theta.
+       Returns the bad vertex and its cost.
+    """
+    costs = _vertex_cost_list(g)
+    values = [1/(c[1]**2+0.001) for c in costs]
+    cdf = np.cumsum(values)
+    cdf = cdf / cdf[-1]
+    r = np.random.rand()
+    sample = sum(r > cdf)
+    return(costs[sample][0])
+
 
 """Fitness Functions"""
 
