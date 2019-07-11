@@ -2,6 +2,7 @@ from ga import GA
 import functions as FUN
 import numpy as np
 import lovasz as LOV
+import algorithm_controller as ALG
 from numpy.random import randint, rand
 
 
@@ -118,8 +119,31 @@ def test_large_lovasz_subgraph():
     print(diag * theta)
     print(sum(diag*theta))
     assert abs(sum(diag*theta) - theta) < 0.01
+"""-----"""
+def algorithm_controller_tests():
+    n=20
+    g =FUN.rand_graph(n,  n*(n-1)//3)
+    while(g.independence_number()!=3):
+        g =FUN.rand_graph(n,  n*(n-1)//3)
+    indep = g.independence_number()
+    print (FUN.fit(g))
+    for i in range(10):
+        print("now starting ", i)
+        assert g.order()==n
+        assert(g.independence_number()==indep)
+        print (FUN.fit(g))
+        print (len(g.maximal_independent_vertex_sets()))
+        print (len(g.largest_independent_vertex_sets()))
+        g = ALG.mutate_worst_vertex(g)
 
+    print (FUN.fit(g))
+    print (FUN._vertex_cost_list(g))
+    print(str(g.adjacency_matrix()))
 
+def incremental_test():
+    ALG.incremental_ga()
+
+"""-----"""
 def run_tests():
     for i in range(20):
         helper_tests()
@@ -128,4 +152,6 @@ def run_tests():
         fitness_tests()
     test_run_ga()
     test_large_lovasz_subgraph()
-run_tests()
+#run_tests()
+#algorithm_controller_tests()
+incremental_test()

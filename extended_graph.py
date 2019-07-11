@@ -3,7 +3,8 @@ from igraph import *
 from logger import wrap_with_log
 from lovasz import lovasz_theta
 from caching import wrap_extended_graph_method_with_cache as wrap_with_cache
-
+import functions as FUN
+import numpy as np
 
 class ExtendedGraph(Graph):
     def __init__(self, *args, **kwds):
@@ -11,18 +12,45 @@ class ExtendedGraph(Graph):
 
     @wrap_with_log
     @wrap_with_cache
+    def lovasz_theta_and_cost_list(self):
+        """returns a pair, theta and the cost list."""
+        order = self.order()
+        #solution = LOV.lovasz_theta(self, long_return=True)
+        solution = lovasz_theta(self, long_return = True)
+        theta = solution['theta']
+        witness = solution['B']
+        costs = np.diagonal(witness) * theta
+        costs = enumerate(costs)  # adds an index
+        costs = sorted(costs, key=lambda x: -x[1])  # sort by the cost
+        assert (order == self.order())
+        return theta, costs
+    @wrap_with_log
     def lovasz_theta(self):
-        return lovasz_theta(self)
+        return self.lovasz_theta_and_cost_list()[0]
+    @wrap_with_log
+    def vertex_cost_list(self):
+        return self.lovasz_theta_and_cost_list()[1]
 
     @wrap_with_log
     @wrap_with_cache
+    def independence_number_and_maximal_independent_sets(self):
+        """computes the pair independence_number, maximal independent sets"""
+        independent_sets = super().maximal_independent_vertex_sets()
+        independent_sets.sort(key = lambda x: -len(x))
+        indep_num = len(independent_sets[0])
+        return indep_num, independent_sets
+
+    @wrap_with_log
     def independence_number(self):
-        return super().independence_number()
+        return self.independence_number_and_maximal_independent_sets()[0]
 
     @wrap_with_log
-    @wrap_with_cache
     def largest_independent_vertex_sets(self):
-        return super().largest_independent_vertex_sets()
+        alpha = self.independence_number()
+        return [s for s in self.independence_number_and_maximal_independent_sets()[1] if len(s)==alpha ]
+    @wrap_with_log
+    def maximal_independent_vertex_sets(self):
+        return self.independence_number_and_maximal_independent_sets()[1]
 
     def vertices(self):
         return self.vs.indices
@@ -49,3 +77,4 @@ class ExtendedGraph(Graph):
         new_g = ExtendedGraph(g.vcount())
         new_g.add_edges(g.get_edgelist())
         return new_g
+    """---"""
