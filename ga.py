@@ -3,7 +3,11 @@ A simple implementation of genetic algorithm.
 """
 import numpy as np
 from logger import global_logger, wrap_with_log
-
+def _no_duplicates(value, list,epsilon=0.001):
+    for l in list:
+        if abs(value - l)<epsilon:
+            return False
+    return True
 
 class GA(object):
     """A generic class which provides the basic functions
@@ -25,7 +29,7 @@ class GA(object):
         proportion of mutations
     """
 
-    def __init__(self, fit, mu, cr, p_cr, p_elite):
+    def __init__(self, fit, mu, cr, p_cr, p_elite, pop_size=None):
         super(GA, self).__init__()
         self.fit = fit
         self.mu = mu
@@ -36,23 +40,25 @@ class GA(object):
         self.log = global_logger
 
     @wrap_with_log
-    def run(self, pop, iter, gt):
+    def run(self, pop, iter, good_size = 10):
         """Runs the genetic algorithm and returns the results.
 
         Args:
             pop(list): initial population
             iter(int): number of iterations
-            gt: good individual threshold. The threshold of fitness where an
-            individual considered to be good enough.
+            good_size: the number of graphs considered "good"
 
         Returns:
             a list of good individuals found throughout the search
         """
-        self.n = n = len(pop)
+        if not pop_size is None:
+            self.n = n = len(pop)
+        else:
+            self.n = n = pop_size
         elites = int(n * self.p_elite)
         self.pop = [i.copy() for i in pop]
         good = []
-        best = None
+        gt = 0 #the good threshold. This will be the smallest fitnees in the set good.
         for i in range(1, iter + 1):
             if i % 10 == 1:
                 self.log("Iteration " + str(i) + "/" + str(iter) + " ...")
@@ -60,14 +66,18 @@ class GA(object):
             self._select()
             # save the good ones
             for j in range(n):
-                if best is None or self.fitness[j] > best:
-                    best = self.fitness[j]
-                if self.fitness[j] >= gt and (self.pop[j], self.fitness[j]) not in good:
+                if ((len(good)<good_size or self.fitness[j] > gt)
+                                and
+                   _no_duplicates(self.fitness[j],[g[1] for g in good])):
                     good.append((self.pop[j].copy(), self.fitness[j]))
                     self.log(
-                        f"Found a good individual with fitness :{self.fitness[j]:0.4f} (best: {best:0.4f})")
-                else:
-                    break
+                        f"Found a good individual with fitness :{self.fitness[j]:0.4f}")
+                    good.sort(key = lambda g: g[1], reverse = True)#sort by fitness
+                    if len(good)>good_size:
+                        good = good[:-1]
+                        gt = good[-1][1]
+                # else:
+                #     break
 
             # 2. generate the new population
             # 2.1 Elitisism

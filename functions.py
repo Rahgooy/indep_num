@@ -172,12 +172,10 @@ def select_bad_vertex(g):
     sample = sum(r > cdf)
     return(costs[sample][0])
 
-
 """Fitness Functions"""
 
 
 @wrap_with_log
-@wrap_with_cache
 def fit(g):
     order = g.order()
     value = g.lovasz_theta() / g.independence_number()
