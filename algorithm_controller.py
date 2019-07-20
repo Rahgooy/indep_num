@@ -39,11 +39,16 @@ def mutate_worst_vertex(g,iterations,pop_size=100,return_size=1,choose_distingui
         best=g
     best, _ = FUN.remove_extra_edges(best)
     return best
-def add_vertex_and_mutate(g):
+def add_vertex_and_mutate(g, return_size):
     g = g.copy()
     g=FUN.mutate_add_another_vertex(g)
-    g=mutate_worst_vertex(g, 10, return_size = platoon_size, choose_distinguished_vertex=True)
+    g=mutate_worst_vertex(g, 10, choose_distinguished_vertex=True, return_size = return_size)
     return g
+def curry_add_vertex_and_mutate(return_size):
+    """returns a function which applies add_vertex_and_mutate with a particular return size"""
+    def to_return(g):
+        return add_vertex_and_mutate(g,return_size)
+    return to_return
 
 @wrap_with_log
 def incremental_ga(initial_size, final_size,
@@ -97,60 +102,24 @@ def incremental_with_mutate_worst_vertex():
     print(str(best.adjacency_matrix()))
     print(best.lovasz_theta())
     print(best.independence_number())
+
 @wrap_with_log
-def advance_guard(vanguard, platoon_size, add_vertex=False):
-    if not type(vanguard) is list:
-        if not add_vertex:
-            print("doh")
-            return mutate_worst_vertex(vanguard, 10, return_size = platoon_size)
-        else:
-            g = add_vertex_and_mutate(g)
-            return g
-    return [advance_guard(troop, platoon_size, add_vertex = add_vertex) for troop in vanguard]
-
-def evaluate_guard(vanguard):
-    if not type(vanguard) is list:
-        return FUN.fit(vanguard)
-    else:
-        return max([evaluate_guard(troop) for troop in vanguard])
-@wrap_with_log
-def retreat_guard(vanguard):
-    return max(vanguard, key = evaluate_guard)
-
-def depth(vanguard):
-    if type(vanguard[0]) is list:
-        return depth(vanguard[0]) + 1
-    else:
-        return 0
-def best_soldier(vanguard):
-     soldiers = [item for sublist in vanguard for item in sublist]
-     return max(soldiers, key = FUN.fit)
-
-def search_with_vanguard(shape=(5,2)):
-    """maintains a list of extended_graphs.Each extended graph is mutated,
+def search_with_vanguard(shape=(5,3)):
+    """maintains a list of extended_graphs. Each extended graph is mutated,
     and the best {shape[0]} mutants are kept. We maintain a tree structure of nested lists of graphs.
     This structure is called the 'vanguard,' the lowest-level lists are called 'platoons.'
     We 'retreat' the vanguard so that no more than {shape[1]} levels are present.
     This allows us to use a form of backtracking, which mitigates the loss of genetic diversity
     encountered when we mutate the vertices one-at-a-time."""
     n = 10  # graph size
-    pop_size = 100
+    pop_size = shape[0]
     independence_number =3
     g =FUN.rand_graph(n,  n*(n-1)//3)
     while(g.independence_number()!=independence_number):
         g =FUN.rand_graph(n,  n*(n-1)//3)
-    # for _ in range(iterations_between_updates):
-    #     g = mutate_worst_vertex(g, iterations, pop_size=pop_size, return_size = shape[0])
-    #TODO: make add_vertex_and_mutate take a parameter, which is the number of graphs to return.
-    #Accomodate the fact that this will be a list in GA.
-    genetic_alg = GA(FUN.fit, add_vertex_and_mutate, FUN.cr_distinguished, 0.0, 0.2, pop_size = 5)
+
+    genetic_alg = GA(FUN.fit, curry_add_vertex_and_mutate(shape[1]), None, 0.0, 0.2, pop_size = shape[0])
     pop = [g]
-    results = genetic_alg.run(pop, iterations = 10, returnsize = 10)
-    vanguard = [g]
-    for _ in range(10):
-        print("advance!")
-        vanguard = advance_guard(vanguard, shape[0], add_vertex = True)
-        if depth(vanguard)==shape[1]:
-            vanguard = retreat_guard(vanguard)
-    g = best_soldier(vanguard)
-    return g
+    results = genetic_alg.run(pop, 11)
+    print(results)
+    return sorted(results, key=lambda x: -x[1])[0][0]

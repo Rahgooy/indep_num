@@ -38,6 +38,7 @@ class GA(object):
         self.p_cr = p_cr
         self.fitness = []
         self.log = global_logger
+        self.pop_size = pop_size
 
     @wrap_with_log
     def run(self, pop, iter, good_size = 10):
@@ -47,14 +48,14 @@ class GA(object):
             pop(list): initial population
             iter(int): number of iterations
             good_size: the number of graphs considered "good"
-
+            pop_size: the maximal size of the population (We allow mutations to create more individuals.)
         Returns:
             a list of good individuals found throughout the search
         """
-        if not pop_size is None:
+        if self.pop_size is None:
             self.n = n = len(pop)
         else:
-            self.n = n = pop_size
+            self.n = n = self.pop_size
         elites = int(n * self.p_elite)
         self.pop = [i.copy() for i in pop]
         good = []
@@ -83,7 +84,7 @@ class GA(object):
             # 2.1 Elitisism
             new_pop = []
             new_pop.extend([x.copy() for x in self.pop[:elites]])
-
+            additional_pop = []
             # 2.2 use cross over and mutation to generate the remaining individuals
             for j in range(n - elites):
                 r = np.random.rand()
@@ -94,15 +95,23 @@ class GA(object):
                     ind2 = np.random.randint(0, n)
                     while (ind1 == ind2):
                         ind2 = np.random.randint(0, n)
-                    new_pop.append(self.cr(self.pop[ind1], self.pop[ind2]))
+                    additional_pop.append(self.cr(self.pop[ind1], self.pop[ind2]))
                 else:
                     # 2.2.2 Mutation
                     ind = np.random.randint(0, n)
-                    new_pop.append(self.mu(self.pop[ind]))
+                    # if iter == 1:
+                    #     print(i)
+                    #     print(j)
+                    #     print(n-elites)
+                    #     print(n)
+                    additional_pop.append(self.mu(self.pop[ind]))
 
             # 3. Update the population
+            if type(additional_pop[0]) is list:
+                additional_pop = [item for sublist in additional_pop for item in sublist]
+            new_pop.extend(additional_pop)
             self.pop = new_pop
-
+        #TODO: {good} should be updated before the final return.
         return good
 
     @wrap_with_log
@@ -113,7 +122,7 @@ class GA(object):
         values.
         """
         self.fitness = []
-        for i in range(self.n):
+        for i in range(len(self.pop)):
             f = self.fit(self.pop[i])
             self.fitness.append(f)
 
