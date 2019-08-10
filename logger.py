@@ -10,6 +10,9 @@ class Logger:
         self.log_profiling = log_profiling
         self.profile = {}
 
+    def reset(self):
+        self.profile = {}
+        
     def start(self, fname):
         if self.log_profiling:
             self.info(f"{fname} is statrted")

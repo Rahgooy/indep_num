@@ -3,6 +3,10 @@ import functions as FUN
 import numpy as np
 import lovasz as LOV
 import algorithm_controller as ALG
+import cvxopt
+import time
+#import extended_graph
+from extended_graph import *
 from numpy.random import randint, rand
 
 
@@ -154,4 +158,197 @@ def run_tests():
     test_large_lovasz_subgraph()
 #run_tests()
 #algorithm_controller_tests()
-incremental_test()
+def test_lift_graph():
+    g = FUN.rand_graph(10, 10*9//4)
+    while(g.lovasz_theta()/g.independence_number() < 1.1):
+        g = FUN.rand_graph(10, 10*9//4)
+
+    for _ in range(5):
+        g, _ = FUN.remove_extra_edges(g)
+        # print(g.order())
+        # print(g.lovasz_theta())
+        # print(g.independence_number())
+        lifts = [g.co_lift() for _ in range(50)]
+        g = sorted(lifts, key = FUN.fit, reverse = True)[0]
+        #print(g.order())
+        print(FUN.fit(g))
+        for i in range(1):
+            g = FUN.large_lovasz_subgraph_vertex_count(g, 10)
+
+def standard_expand_solution(B):
+    BB = [row.tolist() + [0] for row in B]
+    BB.append([0]*len(BB)+[1])
+    return 0.75*np.array(BB)+0.25*np.identity(len(BB))
+
+def fancy_expand_solution(B, neighbors):
+    #epsilon = 5*10**-1
+    epsilon = 0.5
+
+    vectors = np.linalg.cholesky(B)
+    handle = sum([v for v in vectors])
+    # print (neighbors)
+    # print("starting")
+    #print(vectors)
+    neighbor_vectors = [v for index, v in enumerate(vectors) if index in neighbors]
+    to_neighbors = np.stack(neighbor_vectors).T
+    from_neighbors = np.stack(neighbor_vectors)
+    # M = from_neighbors @ np.vstack(handle)
+    # print(len(neighbors))
+    # print(np.vstack(handle))
+    # print (from_neighbors)
+    # print(M)
+    # print(to_neighbors @ M)
+    #
+    # projection = (to_neighbors @ M).T[0]
+    #
+    # remainder = np.array(handle) - projection
+    # if np.linalg.norm(remainder)<0.001:
+    #     print("remainder too small")
+    #     return standard_expand_solution(B)
+    # else:
+    #     remainder = 0.01*remainder/np.linalg.norm(remainder)
+    #     vectors = np.stack(vectors.tolist() + [remainder])
+    #     BB = vectors @ vectors.T
+    #     return BB + 0.1*np.identity(len(BB))
+    #
+    # print(to_neighbors)
+    #remainder = handle - sum()
+
+    orth_neighbors, r = np.linalg.qr(to_neighbors)
+    # print(np.vstack(handle))
+    # print(orth_neighbors)
+    # print("projection of handle")
+    M = orth_neighbors @ orth_neighbors.T @ np.vstack(handle)
+    print(M)
+    print("wao")
+    print(orth_neighbors @ orth_neighbors.T)
+    extra_vector = np.vstack(handle) - M
+    if np.linalg.norm(extra_vector) < 0.001:
+        print("escaped")
+        return standard_expand_solution(B)
+    extra_vector = extra_vector/np.linalg.norm(extra_vector)
+    # print(extra_vector.T[0])
+
+    #vectors = [v if i not in neighbors else 0.99*v for i,v in enumerate(vectors)]
+    #vectors.append(0.01*extra_vector.T[0])
+    # print(vectors)
+
+    BB = np.array(vectors) @ np.array(vectors).T
+    print(len(BB))
+    return BB + 0.1*np.identity(len(BB))
+    #print(r)
+    #proj_onto_neighbor_vectors =
+
+    # print(neighbor_vectors)
+    # print(np.linalg.norm(handle))
+    # extra_vector = 0.5*handle
+    #new_vectors = np.array((0.5*vectors).tolist() + [extra_vector])
+    # print ("new vector")
+    # print (len(vectors))
+    # print (len(new_vectors))
+    #BB = new_vectors @ new_vectors.T
+    # print(np.linalg.det(BB))
+    # print(BB)
+    #
+    # print(handle)
+    # print (np.linalg.norm(handle))
+    # BB = [row.tolist() + [0] for row in B]
+    #
+    #
+    # BB.append([0]*len(BB)+[1])
+    #
+    #
+    # I = [[1 if r ==c < len(BB)-1 else 0 for c in range(len(BB))] for r in range(len(BB))]
+    # I = np.array(I)
+    # BB= np.array(BB)
+    # I = np.identity(len(BB))
+    # eigen = np.linalg.eigh(BB)
+    # from_eigenvectors = np.stack(eigen[1])
+    # to_eigenvectors = from_eigenvectors.T
+    # scaling_factors = [(epsilon - value) if value < epsilon else 0 for value in eigen[0]]
+    # diagonal = np.diag(scaling_factors)
+    # perturbation_matrix = from_eigenvectors @ diagonal @ to_eigenvectors
+    # return BB + 0.5*perturbation_matrix
+
+def test_lovasz_theta_initial_values(graph_size, iterations):
+    g=[]
+    solutions=[]
+    dualstart = []
+    B = []
+    neighbors = []
+    for i in range(iterations):
+        g.append(FUN.rand_graph(10,10*9//4))
+        solutions.append(lovasz_theta(g[i], long_return = True))
+        #print (solutions[i]['theta'])
+        g[i] = FUN.mutate_add_another_vertex(g[i])
+
+    start_time=time.process_time()
+    for i in range(iterations):
+        x = lovasz_theta(g[i], long_return = True)
+    end_time = time.process_time()
+    without_hint_time = end_time- start_time
+    for i in range(iterations):
+        B.append(standard_expand_solution(solutions[i]['B']))
+        dualstart.append({'zs':[cvxopt.matrix(B[i])]})
+
+    start_time = time.process_time()
+    for i in range(iterations):
+        x = lovasz_theta(g[i], long_return = True, start = dualstart[i])
+    end_time = time.process_time()
+    standard_hint_time = end_time - start_time
+
+    start_time = time.process_time()
+    for i in range(iterations):
+        neighbors.append(g[i].neighbors(g[i].order()-1))
+        B[i] = fancy_expand_solution(solutions[i]['B'], neighbors[i])
+        dualstart[i] = {'zs':[cvxopt.matrix(B[i])]}
+    end_time = time.process_time()
+    print("spent ", end_time-start_time, " just computing starting points.")
+    start_time = time.process_time()
+    for i in range(iterations):
+        x = lovasz_theta(g[i], long_return = True, start = dualstart[i])
+    end_time = time.process_time()
+    fancy_hint_time = end_time - start_time
+
+    return without_hint_time, standard_hint_time, fancy_hint_time
+
+def test_evaluate_lovasz_theta_initial_values():
+    print(test_lovasz_theta_initial_values(20, 1))
+    #print(end_time-start_time)
+    # g, _ = FUN.remove_extra_edges(g)
+    # print(g.lovasz_theta())
+    # print(g.independence_number())
+    # g = g.complementer()
+    # g.simplify()
+    # lifted = g.random_lift()
+    # lifted = lifted.complementer()
+    # lifted.simplify()
+    # lifted, _ = FUN.remove_extra_edges(lifted)
+    # print(lifted.lovasz_theta())
+    # print(lifted.independence_number())
+    # back_down = FUN.large_lovasz_subgraph_vertex_count(lifted, 10)
+    # back_down, _ = FUN.remove_extra_edges(back_down)
+    # print(back_down.lovasz_theta())
+    # print(back_down.independence_number())
+    # back_down = back_down.complementer()
+    # back_up = back_down.random_lift()
+    # back_up = back_up.complementer()
+    # back_up.simplify()
+    # back_up, _ = FUN.remove_extra_edges(back_up)
+    # print(back_up.lovasz_theta())
+    # print(back_up.independence_number())
+    #g = extended_graph.ExtendedGraph([(0,1),(1,2),(2,3),(3,4),(4,0)])
+    #print(g.random_lift())
+    #print(g.lift([(0,1)]))
+#test_lift_graph()
+#test_evaluate_lovasz_theta_initial_values()
+#test_lovasz_theta_initial_values()
+
+def troubleshooting_scratchpad():
+    g = ExtendedGraph([(0,1),(1,2),(2,3),(1,3)])
+    g.delete_edges([(0,1)])
+    print(g.adjacency_matrix())
+    permutation = list(range(g.order()))
+    g.permute_vertices(permutation)
+    print(g.adjacency_matrix())
+troubleshooting_scratchpad()

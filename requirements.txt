@@ -1,4 +1,4 @@
 python-igraph
 numpy
 cvxopt
-
+itertools

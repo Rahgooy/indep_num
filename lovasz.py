@@ -69,7 +69,7 @@ def parse_graph(G, complement=False):
     return (nv, edges, c_edges)
 
 
-def lovasz_theta(G, long_return=False, complement=False):
+def lovasz_theta(G, long_return=False, complement=False, start=None):
     '''
     Computes the Lovasz theta number for a graph.
     Takes either a Sage graph or an adjacency matrix as argument.
@@ -110,13 +110,15 @@ def lovasz_theta(G, long_return=False, complement=False):
     G1 = -G1
     h1 = -cvxopt.matrix(1.0, (nv, nv))
     cvxopt.solvers.options['show_progress'] = False
-    sol = cvxopt.solvers.sdp(c, Gs=[G1], hs=[h1])
-
+    if start == None:
+        sol = cvxopt.solvers.sdp(c, Gs=[G1], hs=[h1])
+    else:
+        sol = cvxopt.solvers.sdp(c, Gs=[G1], hs=[h1], dualstart = start)
     if long_return:
         theta = sol['x'][ne]
         Z = np.array(sol['ss'][0])
         B = np.array(sol['zs'][0])
-        return {'theta': theta, 'Z': Z, 'B': B}
+        return {'theta': theta, 'Z': Z, 'B': B, 'y': sol['y']}
     else:
         return sol['x'][ne]
 
