@@ -88,16 +88,15 @@ class GA(object):
                     self.pop = sorted(self.pop, key=self.fit, reverse=True)[:self.pop_size]
                     #self._select()
                 for g in self.pop:
-                    assert g.order()==self.pop[0].order()
+                    #assert g.order()==self.pop[0].order()
                     g.calculate_start_matrix()
                     good = []
+                    gt = 0
             else:
                 self._select()
             # save the good ones
             for j in range(len(self.pop)):
-                assert self.pop[j].order() == self.pop[0].order()
-                if len(good)==0:
-                    good.append(self.pop[j].copy())
+                #assert self.pop[j].order() == self.pop[0].order()
                 if ((len(good)<good_size or self.fit(self.pop[j]) > gt)
                                 and
                     _no_duplicates(self.fit(self.pop[j]),[self.fit(g) for g in good])):
@@ -117,10 +116,11 @@ class GA(object):
             # 2.1 Elitisism
             if i!= iter:
                 new_pop = []
+                self.pop = sorted(self.pop, key = self.fit, reverse = True)
                 new_pop.extend([x.copy() for x in self.pop[:elites]])
                 additional_pop = []
                 # 2.2 use cross over and mutation to generate the remaining individuals
-                for j in range(n):
+                for j in range(len(self.pop)):
                     r = np.random.rand()
 
                     if r < self.p_cr:
@@ -133,7 +133,7 @@ class GA(object):
                     else:
                         # 2.2.2 Mutation
                         if self.make_unique:
-                            assert len(self.pop)==n
+                            #assert len(self.pop)==n
                             additional_pop.append(self.mu(self.pop[j]))
                         else:
                             ind = np.random.randint(0, len(self.pop))
@@ -147,6 +147,7 @@ class GA(object):
                     self.pop = additional_pop
                 else:
                     self.pop = new_pop
+                self.pop=sorted(self.pop, key= self.fit, reverse=True)
         return good
 
     @wrap_with_log
@@ -219,12 +220,10 @@ class GA(object):
             for index2 in range(index1+1,len(pop)):
                 if abs(self.fit(pop[index1]) - self.fit(pop[index2]) ) <0.001:
                     if pop[index1].isomorphic(pop[index2]):
-                        if len(to_remove)>=maximum_removal:
-                            print("maximum removal")
-                            break
                         to_remove.append(index1)
+                        break
                 else:
                     break
         self.pop = [g for index, g in enumerate(pop) if index not in to_remove]
-        assert len(self.pop)>=self.pop_size
+        #assert len(self.pop)>=self.pop_size
         return self.pop

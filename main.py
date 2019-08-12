@@ -10,14 +10,14 @@ if __name__ == "__main__":
     # incremental_ga(initial_size = 12, final_size = 20,
     #                iterations = 10, iterations_between_updates = 2,
     #                pop_size = 100, independence_number=3)
-    result_table = open("parameter_tuning_pt10_dontremovextraedges.txt","w+")
+    result_table = open("parameter_tuning_pt11_dontremovextraedges.txt","w+")
 
-    meta_pops = [20]
-    branch_factors = [7,10,15]
-    pop_per_mus = [200]
+    meta_pops = [10]
+    branch_factors = [3,5,7]
+    pop_per_mus = [50,100]
     iterations_per_mus = [10]
-    elite_percents = [0.05, 0.1]
-    crossover_percents = [0.5, 0.1]
+    elite_percents = [0.5, 0.3, 0.1]
+    crossover_percents = [0.5, 0.3, 0.1]
     meta_elite_percents = [0.2]
     make_uniques = [True]
     #meta_select_procs=["make_extra_unique"]

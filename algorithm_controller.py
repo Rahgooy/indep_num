@@ -82,13 +82,13 @@ def search_with_vanguard(options):
     pop_size = options["meta_pop"]
     independence_number =3
     #g =FUN.rand_graph(n,  n*(n-1)//3)
-    g = ExtendedGraph([(i,i+1) for i in range(4)] + [(4,0),(4,5),(2,5)])
-    pop = []
-    for _ in range(options["meta_pop"]):
-        while(g.independence_number()!=independence_number):
-            print("stupid is as stupid does")
-            g =FUN.rand_graph(n,  n*(n-1)//3)
-        pop.append(g.copy())
+    g = ExtendedGraph([(i,i+1) for i in range(4)] + [(4,0),(5,4),(5,2)])
+    pop = [g]
+    # for _ in range(options["meta_pop"]):
+    #     while(g.independence_number()!=independence_number):
+    #         print("stupid is as stupid does")
+    #         g =FUN.rand_graph(n,  n*(n-1)//3)
+    #     pop.append(g.copy())
     print(g.order())
     print(g.order())
     print(g.order())

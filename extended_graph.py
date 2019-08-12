@@ -25,7 +25,7 @@ class ExtendedGraph(Graph):
     def lovasz_theta_and_cost_list(self):
         subgraph = self.subgraph(range(self.order()-1), implementation = "copy_and_delete")
         assert subgraph.order() == self.order() -1
-        seed = check_start_matrix(subgraph)
+        seed = subgraph.calculate_start_matrix()
         """returns a pair, theta and the cost list."""
         order = self.order()
         assert order >= get_cache_number()
