@@ -1,8 +1,11 @@
-"""
-A simple implementation of genetic algorithm.
-"""
+"""A simple implementation of genetic algorithm."""
 import numpy as np
 from logger import global_logger, wrap_with_log
+from caching_redis import clear_cache
+from caching_redis import set_to_start_matrices
+from caching_redis import calculate_fitness_in_batch
+#from multiprocessing import Process
+from threading import Thread
 def _no_duplicates(value, list,epsilon=0.0001):
     for l in list:
         if abs(value - l)<epsilon:
@@ -40,6 +43,49 @@ class GA(object):
         self.log = global_logger
         self.pop_size = pop_size
         self.make_unique = make_unique #mutates each element of the population once.
+        self.new_graph_dictionary = {}
+
+    @wrap_with_log
+    def perform_mutations(self, start, end, results, index):
+        elites = int(self.n * self.p_elite)
+        new_pop = []
+        #self.pop = sorted(self.pop, key = self.fit, reverse = True)
+        if start ==0 and not self.make_unique:
+            new_pop.extend([x.copy() for x in self.pop[:elites]])
+            #new_fit.extend([x.copy() for x in self.fitness[:elites]])
+        additional_pop = []
+        # 2.2 use cross over and mutation to generate the remaining individuals
+        for j in range(start,end):
+            #print("j is ",j)
+            r = np.random.rand()
+
+            if r < self.p_cr:
+                # 2.2.1 cross over
+                ind1 = np.random.randint(0, len(self.pop))
+                ind2 = np.random.randint(0, len(self.pop))
+                while (ind1 == ind2):
+                    ind2 = np.random.randint(0, len(self.pop))
+                additional_pop.append(self.cr(self.pop[ind1], self.pop[ind2]))
+            else:
+                # 2.2.2 Mutation
+                if self.make_unique:
+                    #assert len(self.pop)==n
+                    additional_pop.append(self.mu(self.pop[j]))
+                else:
+                    ind = np.random.randint(0, len(self.pop))
+                    additional_pop.append(self.mu(self.pop[ind]))
+
+        # 3. Update the population
+        if len(additional_pop)==0:
+            print("empty")
+            return []
+        if type(additional_pop[0]) is list:
+            additional_pop = [item for sublist in additional_pop for item in sublist]
+        new_pop.extend(additional_pop)
+
+        results[index] = new_pop
+        return new_pop
+
 
     @wrap_with_log
     def run(self, pop, iter, good_size = 10, meta_select_proc=None):
@@ -57,9 +103,10 @@ class GA(object):
             self.n = n = len(pop)
         else:
             self.n = n = self.pop_size
-        elites = int(n * self.p_elite)
         self.pop = [i.copy() for i in pop]
+        self.fitness = calculate_fitness_in_batch(self.pop)
         good = []
+        goodfit = []
         gt = 0 #the good threshold. This will be the smallest fitness in the set good.
         for i in range(1, iter + 1):
             if i % 10 == 1:
@@ -85,69 +132,70 @@ class GA(object):
                     self._select()
                 elif meta_select_proc=="take_best_very_unique":
                     self._remove_isomorphic_better()
-                    self.pop = sorted(self.pop, key=self.fit, reverse=True)[:self.pop_size]
+                    #self.pop = sorted(self.pop, key=self.fit, reverse=True)[:self.pop_size]
+                    self.pop = self.pop[:self.pop_size]
+                    self.fitness = self.fitness[:self.pop_size]
+                    assert(len(self.pop)==len(self.fitness))
                     #self._select()
+                clear_cache()
+                good = []
+                goodfit = []
+                gt = 0
+                print("computed graphs with ", self.pop[0].order(), " vertices")
+                print("current pop size ", len(self.pop))
                 for g in self.pop:
                     #assert g.order()==self.pop[0].order()
-                    g.calculate_start_matrix()
-                    good = []
-                    gt = 0
+                    set_to_start_matrices(g)
             else:
+                #self.pop=sorted(self.pop, key= self.fit, reverse=True)
                 self._select()
             # save the good ones
             for j in range(len(self.pop)):
                 #assert self.pop[j].order() == self.pop[0].order()
-                if ((len(good)<good_size or self.fit(self.pop[j]) > gt)
-                                and
-                    _no_duplicates(self.fit(self.pop[j]),[self.fit(g) for g in good])):
+                if ((len(good)<good_size or self.fitness[j]) > gt and _no_duplicates(self.fitness[j],goodfit)):
                     #not (self.pop[j].adjacency_matrix() in [g.adjacency_matrix() for g in good])):
                     #_no_duplicates(self.fit(self.pop[j]),[g[1] for g in good])):
                     good.append(self.pop[j].copy())
+                    goodfit.append(self.fitness[j])
                     self.log(
-                        f"Found a good individual with fitness :{self.fit(self.pop[j]):0.4f}")
-                    good.sort(key = self.fit, reverse = True)#sort by fitness
+                        f"Found a good individual with fitness :{self.fitness[j]:0.4f}")
+                    #good.sort(key = self.fit, reverse = True)#sort by fitness
+                    gfg = zip(good, goodfit)
+                    gfg = sorted(gfg, key = lambda x: x[1], reverse = True)
+                    good = [g for g, f in gfg]
+                    goodfit = [f for g, f in gfg]
                     if len(good)>good_size:
                         good = good[:-1]
-                        gt = self.fit(good[-1])
+                        goodfit = goodfit[:-1]
+                        gt = goodfit[-1]
                 # else:
                 #     break
 
             # 2. generate the new population
             # 2.1 Elitisism
             if i!= iter:
-                new_pop = []
-                self.pop = sorted(self.pop, key = self.fit, reverse = True)
-                new_pop.extend([x.copy() for x in self.pop[:elites]])
-                additional_pop = []
-                # 2.2 use cross over and mutation to generate the remaining individuals
-                for j in range(len(self.pop)):
-                    r = np.random.rand()
-
-                    if r < self.p_cr:
-                        # 2.2.1 cross over
-                        ind1 = np.random.randint(0, len(self.pop))
-                        ind2 = np.random.randint(0, len(self.pop))
-                        while (ind1 == ind2):
-                            ind2 = np.random.randint(0, len(self.pop))
-                        additional_pop.append(self.cr(self.pop[ind1], self.pop[ind2]))
-                    else:
-                        # 2.2.2 Mutation
-                        if self.make_unique:
-                            #assert len(self.pop)==n
-                            additional_pop.append(self.mu(self.pop[j]))
-                        else:
-                            ind = np.random.randint(0, len(self.pop))
-                            additional_pop.append(self.mu(self.pop[ind]))
-
-                # 3. Update the population
-                if type(additional_pop[0]) is list:
-                    additional_pop = [item for sublist in additional_pop for item in sublist]
-                new_pop.extend(additional_pop)
-                if self.make_unique:
-                    self.pop = additional_pop
+                numthreads = min(8,len(self.pop))
+                results = [None]*numthreads
+                if self.make_unique and len(self.pop)>=numthreads:
+                    self.new_graph_dictionary={}
+                    threads = [Thread(target = self.perform_mutations, args = (t*len(self.pop)//numthreads, (t+1)*len(self.pop)//numthreads, results, t)) for t in range(numthreads)]
+                    for t in threads:
+                        t.start()
+                    for t in threads:
+                        t.join()
                 else:
-                    self.pop = new_pop
-                self.pop=sorted(self.pop, key= self.fit, reverse=True)
+                    self.perform_mutations(0,len(self.pop), results, 0)
+                new_graphs = []
+                for r in results:
+                    if r is not None:
+                        new_graphs.extend(r)
+                self.fitness = calculate_fitness_in_batch(new_graphs)
+                #assert(len(self.fitness)== len(self.pop))
+                popfit = zip(new_graphs, self.fitness)
+                popfit= sorted(popfit, key = lambda x: x[1], reverse = True)
+                self.pop = [g for g, f in popfit]
+                self.fitness = [f for g, f in popfit]
+                #self.pop = sorted(new_graphs, key= self.fit, reverse=True)
         return good
 
     @wrap_with_log
@@ -158,13 +206,12 @@ class GA(object):
         values.
         """
         elites = int(self.n * self.p_elite)
-        #self.pop = sorted(self.pop, key=self.fit, reverse = True)
-        elite_pop = sorted(self.pop, key=self.fit, reverse = True)[:elites]
-        elite_fitness = [self.fit(e) for e in elite_pop]
-        self.fitness = []
-        for i in range(len(self.pop)):
-            f = self.fit(self.pop[i])
-            self.fitness.append(f)
+        elite_pop = self.pop[:elites]
+        elite_fit = self.fitness[:elites]
+        #self.fitness = []
+        # for i in range(len(self.pop)):
+        #     f = self.fit(self.pop[i])
+        #     self.fitness.append(f)
 
         # roulette wheel selection
         vals = np.array(self.fitness)
@@ -177,11 +224,17 @@ class GA(object):
             r = np.random.rand()
             sample = sum(r > cdf)
             new_pop.append(self.pop[sample].copy())
+            new_fit.append(self.fitness[sample])
 
         new_pop.extend(elite_pop)
-        self.pop=new_pop
-        self.pop=sorted(self.pop, key=self.fit, reverse = True)
-        self.fitness = [self.fit(g) for g in self.pop]
+        new_fit.extend(elite_fit)
+        popfit = zip(new_pop, new_fit)
+        #popfit.sort(key=lambda x: x[1], reverse = True)
+        popfit= sorted(popfit,key=lambda x: x[1], reverse = True)
+        self.pop = [p for p, f in popfit]
+        self.fitness= [f for p, f in popfit]
+        #self.pop=sorted(self.pop, key=self.fit, reverse = True)
+        #self.fitness = [self.fit(g) for g in self.pop]
 
     def _select_unique(self):
         all_individuals = self._remove_isomorphic()
@@ -196,13 +249,15 @@ class GA(object):
     @wrap_with_log
     def _remove_isomorphic(self):
         """Removes the isomorphic copies from the population."""
-        pop = sorted(self.pop, key=self.fit)#sorts the population by fitness, increasing.
+        #pop = sorted(self.pop, key=self.fit)#sorts the population by fitness, increasing.
+        self.pop.reverse()
+        pop = self.pop
         to_remove = []
         maximum_removal = len(self.pop)-self.pop_size
         if maximum_removal <=0:
             return self.pop
         for index in range(len(pop)-1):
-            if abs(self.fit(pop[index]) - self.fit(pop[index+1]) ) <0.001:
+            if abs(self.fitness[index] - self.fitness[index+1]) <0.001:
                 if pop[index].isomorphic(pop[index+1]):
                     to_remove.append(index)
                     if len(to_remove)>maximum_removal:
@@ -210,20 +265,28 @@ class GA(object):
                         break
         self.pop = [g for index, g in enumerate(pop) if index not in to_remove]
         return self.pop
+
+    @wrap_with_log
     def _remove_isomorphic_better(self):
-        pop = sorted(self.pop, key=self.fit)#sorts the population by fitness, increasing.
+        #pop = sorted(self.pop, key=self.fit)#sorts the population by fitness, increasing.
+        self.pop.reverse()
+        self.fitness.reverse()
+        pop = self.pop
         to_remove = []
         maximum_removal = len(self.pop)-self.pop_size
-        if maximum_removal <=0:
-            return self.pop
+        # if maximum_removal <=0:
+        #     return self.pop
         for index1 in range(len(pop)-1):
             for index2 in range(index1+1,len(pop)):
-                if abs(self.fit(pop[index1]) - self.fit(pop[index2]) ) <0.001:
+                if abs(self.fitness[index1] - self.fitness[index2] ) <0.001:
                     if pop[index1].isomorphic(pop[index2]):
                         to_remove.append(index1)
                         break
                 else:
                     break
         self.pop = [g for index, g in enumerate(pop) if index not in to_remove]
+        self.fitness = [f for index, f in enumerate(self.fitness) if index not in to_remove]
         #assert len(self.pop)>=self.pop_size
+        self.pop.reverse()
+        self.fitness.reverse()
         return self.pop

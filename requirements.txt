@@ -1,4 +1,5 @@
 python-igraph
 numpy
 cvxopt
-itertools
+more-itertools
+redis

@@ -3,26 +3,26 @@ from algorithm_controller import search_with_vanguard
 from caching import print_cache_stats, reset_cache_number
 from logger import global_logger
 from itertools import product
-from caching import clear_cache
 from functools import reduce
 import functions as FUN
+import time
 if __name__ == "__main__":
     # incremental_ga(initial_size = 12, final_size = 20,
     #                iterations = 10, iterations_between_updates = 2,
     #                pop_size = 100, independence_number=3)
-    result_table = open("parameter_tuning_pt11_dontremovextraedges.txt","w+")
+    result_table = open("multi_threaded_time_test.txt","w+")
 
-    meta_pops = [10]
-    branch_factors = [3,5,7]
-    pop_per_mus = [50,100]
+    meta_pops = [30]
+    branch_factors = [7]
+    pop_per_mus = [200]
     iterations_per_mus = [10]
-    elite_percents = [0.5, 0.3, 0.1]
-    crossover_percents = [0.5, 0.3, 0.1]
+    elite_percents = [0.1]
+    crossover_percents = [0.2]
     meta_elite_percents = [0.2]
     make_uniques = [True]
     #meta_select_procs=["make_extra_unique"]
     meta_select_procs = ["take_best_very_unique"]
-
+    start_time = time.process_time()
     for branch_factor, meta_pop, pop_per_mu, iterations_per_mu, elite_percent, crossover_percent, meta_elite_percent, make_unique, meta_select_proc in product(branch_factors, meta_pops, pop_per_mus, iterations_per_mus,
                                                                             elite_percents, crossover_percents, meta_elite_percents, make_uniques, meta_select_procs):
         options = {"branch_factor":branch_factor, "meta_pop":meta_pop, "pop_per_mu":pop_per_mu, "iterations_per_mu":iterations_per_mu,
@@ -37,8 +37,10 @@ if __name__ == "__main__":
             result_table.write("\n")
             #print (branch_fator, meta_pop, pop_per_mu, iterations_per_mu, elite_percent, crossover_percent, meta_elite_percent, make_unique, meta_select_proc)
             global_logger.reset() #reset logger
-            reset_cache_number()
+            #reset_cache_number()
     result_table.close()
+    end_time = time.process_time()
+    print("total time is ", end_time - start_time)
     # exit()
     # g = search_with_vanguard(options)
     # print (g.lovasz_theta())
@@ -46,7 +48,7 @@ if __name__ == "__main__":
     # print (g.order())
     # print (g.adjacency_matrix())
     # global_logger.print_profile()
-    print_cache_stats()
+    #print_cache_stats()
 """branch_factors = [1,2,5,7]
     meta_pops = [1,3,5,10,20]
     pop_per_mu = [50,100,200]

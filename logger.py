@@ -2,6 +2,7 @@ import sys
 import time
 from helpers import OutputColors as clr
 
+LOG_ENABLED = True
 
 class Logger:
 
@@ -12,7 +13,7 @@ class Logger:
 
     def reset(self):
         self.profile = {}
-        
+
     def start(self, fname):
         if self.log_profiling:
             self.info(f"{fname} is statrted")
@@ -31,7 +32,21 @@ class Logger:
             self.info(f"{fname} is Finished.")
         self.profile[fname]['total'] += time.clock() - self.profile[fname]['current']
 
+    def condense_profile(self):
+        """combines functions of the same name running on different threads."""
+        new_profile = {}
+        for k in self.profile:
+            func_name=k.split(",")[0]
+            if func_name in new_profile:
+                new_profile[func_name]['calls'] += self.profile[k]['calls']
+                new_profile[func_name]['total'] += self.profile[k]['total']
+            else:
+                new_profile[func_name]['calls'] = self.profile[k]['calls']
+                new_profile[func_name]['total'] = self.profile[k]['total']
+        self.profile = new_profile
+
     def print_profile(self):
+        self.condense_profile()
         self.out.write(clr.BLUE)
         self.out.write("=" * 85 + "\n")
         self.out.write("=" + " " * 35 + "Time Profiles" + " " * 35 + "=\n")
@@ -68,9 +83,9 @@ def wrap_with_log(func, logger=global_logger):
     """Wraps specified functions of an object with logger.start and logger.finish"""
 
     def wrap(*args, **kwargs):
-        logger.start(func.__name__)
+        logger.start(func.__name__ +"," +str(threading.get_ident()))
         result = func(*args, **kwargs)
-        logger.finish(func.__name__)
+        logger.finish(func.__name__ +"," +str(threading.get_ident()))
         return result
 
     wrap.__name__ = func.__name__

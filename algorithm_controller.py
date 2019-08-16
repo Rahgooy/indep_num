@@ -1,6 +1,5 @@
 #!/usr/bin/python3
-"""Contains methods coordinate runs of the genetic algorithm.
-"""
+"""Contains methods coordinate runs of the genetic algorithm."""
 from ga import GA
 import functions as FUN
 from numpy.random import randint, rand
@@ -17,10 +16,10 @@ def mutate_worst_vertex(g,mutation_options,choose_distinguished_vertex=False):
 
 
     g = g.copy()
-    v = FUN.select_bad_vertex(g)
-    fit = FUN.fit(g)
+    #v = FUN.select_bad_vertex(g)
+    #fit = FUN.fit(g)
     n=g.order()
-    permutation = [n-1 if x==v else v if x ==n-1 else x for x in range(n)]
+    #permutation = [n-1 if x==v else v if x ==n-1 else x for x in range(n)]
     if choose_distinguished_vertex==True:
         permutation = list(range(n))
     g.permute_vertices(permutation)
@@ -35,20 +34,23 @@ def mutate_worst_vertex(g,mutation_options,choose_distinguished_vertex=False):
     if len(results)==0:
         return g
     if mutation_options["branch_factor"] != 1:
-        good_results = sorted(results, key=FUN.fit, reverse=True)[:mutation_options["branch_factor"]]
+        #good_results = sorted(results, key=FUN.fit, reverse=True)[:mutation_options["branch_factor"]]
+        good_results = results[:mutation_options["branch_factor"]]
         good_graphs = good_results
         #good_graphs = [FUN.remove_extra_edges(res)[0] for res in good_results]
-        if FUN.fit(good_graphs[-1]) < fit:
-            good_graphs[-1]= g
+        # if FUN.fit(good_graphs[-1]) < fit:
+        #     good_graphs[-1]= g
         for best in good_graphs:
             subgraph =  best.induced_subgraph(range(best.order()-1), implementation = "copy_and_delete").adjacency_matrix()
             assert subgraph == subgraph_check
         return good_graphs
-    new_graph = sorted(results, key=FUN.fit, reverse=True)[0]
-    if fit < FUN.fit(new_graph):
-        best = new_graph
-    else:
-        best=g
+    #new_graph = sorted(results, key=FUN.fit, reverse=True)[0]
+    new_graph = results[0]
+    best = new_graph
+    # if fit < FUN.fit(new_graph):
+    #     best = new_graph
+    # else:
+    #     best=g
     #best, _ = FUN.remove_extra_edges(best)
     return best
 def add_vertex_and_mutate(g, mutation_options):
@@ -78,7 +80,6 @@ def search_with_vanguard(options):
     options = branch_factor, meta_pop, pop_per_mu, iterations_per_mu,
              elite_percent, crossover_percent, meta_elite_percent, make_unique,meta_select_proc
     """
-    n = 10  # graph size
     pop_size = options["meta_pop"]
     independence_number =3
     #g =FUN.rand_graph(n,  n*(n-1)//3)
@@ -89,11 +90,6 @@ def search_with_vanguard(options):
     #         print("stupid is as stupid does")
     #         g =FUN.rand_graph(n,  n*(n-1)//3)
     #     pop.append(g.copy())
-    print(g.order())
-    print(g.order())
-    print(g.order())
-    print(g.order())
-    print(g.order())
     mutation_options = {"branch_factor":options["branch_factor"],"pop_per_mu":options["pop_per_mu"],
                         "iterations_per_mu":options["iterations_per_mu"], "elite_percent":options["elite_percent"], "crossover_percent":options["crossover_percent"]}
     genetic_alg1 = GA(FUN.fit, curry_add_vertex_and_mutate(mutation_options),
@@ -101,7 +97,8 @@ def search_with_vanguard(options):
     #pop = [g]
     results = genetic_alg1.run(pop, 15, meta_select_proc=options["meta_select_proc"])
     print([FUN.fit(r) for r in results])
-    return sorted(results, key=FUN.fit, reverse = True)[0]
+    #return sorted(results, key=FUN.fit, reverse = True)[0]
+    return results[0]
 """branch_factors = [1,2,5,7]
     meta_pops = [1,3,5,10,20]
     pop_per_mu = [50,100,200]

@@ -5,6 +5,7 @@ import lovasz as LOV
 import algorithm_controller as ALG
 import cvxopt
 import time
+import redis
 #import extended_graph
 from extended_graph import *
 from numpy.random import randint, rand
@@ -344,11 +345,47 @@ def test_evaluate_lovasz_theta_initial_values():
 #test_evaluate_lovasz_theta_initial_values()
 #test_lovasz_theta_initial_values()
 
-def troubleshooting_scratchpad():
-    g = ExtendedGraph([(0,1),(1,2),(2,3),(1,3)])
-    g.delete_edges([(0,1)])
-    print(g.adjacency_matrix())
-    permutation = list(range(g.order()))
-    g.permute_vertices(permutation)
-    print(g.adjacency_matrix())
-troubleshooting_scratchpad()
+# def troubleshooting_scratchpad():
+#     g = ExtendedGraph([(0,1),(1,2),(2,3),(1,3)])
+#     g.delete_edges([(0,1)])
+#     print(g.adjacency_matrix())
+#     permutation = list(range(g.order()))
+#     g.permute_vertices(permutation)
+#     print(g.adjacency_matrix())
+#troubleshooting_scratchpad()
+def redis_scratchpad():
+    import socket
+    print ("hooo")
+    #print(socket.gethostname())
+    r = redis.Redis(host="172.17.0.1")
+    print(r.ping())
+
+    start_time = time.process_time()
+    x = 5
+    end_time = time.process_time()
+    #print (end_time-start_time)
+    start_time = time.process_time()
+    g = ExtendedGraph([(i,i+1) for i in range(4)]+[(4,0),(5,0)])
+        #l = g.lovasz_theta()
+    print(g.lovasz_theta())
+    print(g.lovasz_theta())
+    print(g.lovasz_theta())
+    print(g.independence_number())
+    #r.hset(str(g.adjacency_matrix()), "lovasz_theta",(5**0.5))
+    #print (float((r.hget(str(g.adjacency_matrix()), "lovasz_theta"))))
+    #print (g.lovasz_theta())
+    print(g.calculate_start_matrix())
+    print(g.calculate_start_matrix())
+    for x in g.maximal_independent_vertex_sets():
+        print(x)
+    r.hset("tuna", "fish", "hongkong")# ["long","lost","love"])
+
+
+
+    print(r.exists("tuna", "fish"))
+    print(r.hkeys("tuna"))
+    print(r.hget("tuna", "fish"))
+    #print(r.hget("tuna", "fish"))
+    end_time = time.process_time()
+    #print( end_time - start_time)
+redis_scratchpad()
