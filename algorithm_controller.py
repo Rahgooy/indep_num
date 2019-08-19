@@ -27,8 +27,8 @@ def mutate_worst_vertex(g,mutation_options,choose_distinguished_vertex=False):
         assert subgraph_check == g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete").adjacency_matrix()
         #assert g.adjacency_matrix()==subgraph_check
     subgraph = g.induced_subgraph([w for w in g.vertices() if w!=n-1], implementation = "copy_and_delete")
-    pop = [FUN.mutate_add_another_vertex(subgraph) for _ in range(mutation_options["pop_per_mu"]-1)]
-    pop = pop+[g]
+    pop = [FUN.mutate_add_another_vertex(subgraph) for _ in range(mutation_options["pop_per_mu"])]
+    #pop = pop+[g]
     ga = GA(FUN.fit, FUN.mutate_distinguished_vertex, FUN.cr_distinguished, mutation_options["crossover_percent"], mutation_options["elite_percent"])
     results = ga.run(pop, mutation_options["iterations_per_mu"], mutation_options["branch_factor"])
     if len(results)==0:
@@ -56,12 +56,14 @@ def mutate_worst_vertex(g,mutation_options,choose_distinguished_vertex=False):
 def add_vertex_and_mutate(g, mutation_options):
     subgraph_check = g.induced_subgraph(range(g.order()), implementation = "copy_and_delete").adjacency_matrix()
     g = g.copy()
-    g=FUN.mutate_add_another_vertex(g)
+    #g=FUN.mutate_add_another_vertex(g)
+    g.add_vertex()
     g=mutate_worst_vertex(g, mutation_options, choose_distinguished_vertex = True)
     for item in g:
         subgraph = item.induced_subgraph(range(item.order()-1), implementation = "copy_and_delete").adjacency_matrix()
         assert subgraph_check == subgraph
     return g
+
 def curry_add_vertex_and_mutate(mutation_options):
     """returns a function which applies add_vertex_and_mutate with a particular return size"""
     def to_return(g):
@@ -95,7 +97,7 @@ def search_with_vanguard(options):
     genetic_alg1 = GA(FUN.fit, curry_add_vertex_and_mutate(mutation_options),
                           None, 0.0, options["meta_elite_percent"], pop_size = options["meta_pop"],make_unique=options["make_unique"])
     #pop = [g]
-    results = genetic_alg1.run(pop, 15, meta_select_proc=options["meta_select_proc"])
+    results = genetic_alg1.run(pop, 16, meta_select_proc=options["meta_select_proc"])
     print([FUN.fit(r) for r in results])
     #return sorted(results, key=FUN.fit, reverse = True)[0]
     return results[0]

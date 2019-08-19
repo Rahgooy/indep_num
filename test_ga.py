@@ -181,140 +181,67 @@ def standard_expand_solution(B):
     BB.append([0]*len(BB)+[1])
     return 0.75*np.array(BB)+0.25*np.identity(len(BB))
 
-def fancy_expand_solution(B, neighbors):
-    #epsilon = 5*10**-1
-    epsilon = 0.5
+def compute_starting_point(g):
+    subgraph = g.induced_subgraph(range(g.order()-1))
+    n_ratio = len(g.neighbors(g.order()-1))/(g.order()-1)
+    subgraph.add_vertex()
+    matrix1 = np.array(lovasz_theta(subgraph, long_return=True)['B'])
+    subgraph = subgraph.induced_subgraph(range(subgraph.order()-1))
+    subgraph = subgraph.complementer().simplify()
+    subgraph.add_vertex()
+    subgraph = subgraph.complementer().simplify()
+    matrix2 = np.array(lovasz_theta(subgraph, long_return=True)['B'])
+    return 0.75*((1-n_ratio)*matrix1+n_ratio*matrix2)+0.25*np.identity(g.order())
 
-    vectors = np.linalg.cholesky(B)
-    handle = sum([v for v in vectors])
-    # print (neighbors)
-    # print("starting")
-    #print(vectors)
-    neighbor_vectors = [v for index, v in enumerate(vectors) if index in neighbors]
-    to_neighbors = np.stack(neighbor_vectors).T
-    from_neighbors = np.stack(neighbor_vectors)
-    # M = from_neighbors @ np.vstack(handle)
-    # print(len(neighbors))
-    # print(np.vstack(handle))
-    # print (from_neighbors)
-    # print(M)
-    # print(to_neighbors @ M)
-    #
-    # projection = (to_neighbors @ M).T[0]
-    #
-    # remainder = np.array(handle) - projection
-    # if np.linalg.norm(remainder)<0.001:
-    #     print("remainder too small")
-    #     return standard_expand_solution(B)
-    # else:
-    #     remainder = 0.01*remainder/np.linalg.norm(remainder)
-    #     vectors = np.stack(vectors.tolist() + [remainder])
-    #     BB = vectors @ vectors.T
-    #     return BB + 0.1*np.identity(len(BB))
-    #
-    # print(to_neighbors)
-    #remainder = handle - sum()
-
-    orth_neighbors, r = np.linalg.qr(to_neighbors)
-    # print(np.vstack(handle))
-    # print(orth_neighbors)
-    # print("projection of handle")
-    M = orth_neighbors @ orth_neighbors.T @ np.vstack(handle)
-    print(M)
-    print("wao")
-    print(orth_neighbors @ orth_neighbors.T)
-    extra_vector = np.vstack(handle) - M
-    if np.linalg.norm(extra_vector) < 0.001:
-        print("escaped")
-        return standard_expand_solution(B)
-    extra_vector = extra_vector/np.linalg.norm(extra_vector)
-    # print(extra_vector.T[0])
-
-    #vectors = [v if i not in neighbors else 0.99*v for i,v in enumerate(vectors)]
-    #vectors.append(0.01*extra_vector.T[0])
-    # print(vectors)
-
-    BB = np.array(vectors) @ np.array(vectors).T
-    print(len(BB))
-    return BB + 0.1*np.identity(len(BB))
-    #print(r)
-    #proj_onto_neighbor_vectors =
-
-    # print(neighbor_vectors)
-    # print(np.linalg.norm(handle))
-    # extra_vector = 0.5*handle
-    #new_vectors = np.array((0.5*vectors).tolist() + [extra_vector])
-    # print ("new vector")
-    # print (len(vectors))
-    # print (len(new_vectors))
-    #BB = new_vectors @ new_vectors.T
-    # print(np.linalg.det(BB))
-    # print(BB)
-    #
-    # print(handle)
-    # print (np.linalg.norm(handle))
-    # BB = [row.tolist() + [0] for row in B]
-    #
-    #
-    # BB.append([0]*len(BB)+[1])
-    #
-    #
-    # I = [[1 if r ==c < len(BB)-1 else 0 for c in range(len(BB))] for r in range(len(BB))]
-    # I = np.array(I)
-    # BB= np.array(BB)
-    # I = np.identity(len(BB))
-    # eigen = np.linalg.eigh(BB)
-    # from_eigenvectors = np.stack(eigen[1])
-    # to_eigenvectors = from_eigenvectors.T
-    # scaling_factors = [(epsilon - value) if value < epsilon else 0 for value in eigen[0]]
-    # diagonal = np.diag(scaling_factors)
-    # perturbation_matrix = from_eigenvectors @ diagonal @ to_eigenvectors
-    # return BB + 0.5*perturbation_matrix
 
 def test_lovasz_theta_initial_values(graph_size, iterations):
     g=[]
+    gp=[]
     solutions=[]
+    standard_solutions=[]
     dualstart = []
     B = []
     neighbors = []
     for i in range(iterations):
-        g.append(FUN.rand_graph(10,10*9//4))
-        solutions.append(lovasz_theta(g[i], long_return = True))
-        #print (solutions[i]['theta'])
-        g[i] = FUN.mutate_add_another_vertex(g[i])
+        g.append(FUN.rand_graph(graph_size,graph_size*(graph_size-1)//4))
 
+        g[i].add_vertex()
+        g[i].add_edges([(v,g[i].order()-1) for v in range(g[i].order()-1) if np.random.rand()<0.5])
+    for i in range(iterations):
+        subgraph = g[i].induced_subgraph(range(g[i].order()-1))
+        standard_solutions.append(lovasz_theta(subgraph, long_return = True))
     start_time=time.process_time()
     for i in range(iterations):
         x = lovasz_theta(g[i], long_return = True)
     end_time = time.process_time()
     without_hint_time = end_time- start_time
     for i in range(iterations):
-        B.append(standard_expand_solution(solutions[i]['B']))
-        dualstart.append({'zs':[cvxopt.matrix(B[i])]})
+        #B.append(0.75*np.array(solutions[i]['B'])+0.25*np.identity(g[i].order()))
+        dualstart.append({'zs':[cvxopt.matrix(compute_starting_point(g[i]))]})
 
-    start_time = time.process_time()
-    for i in range(iterations):
-        x = lovasz_theta(g[i], long_return = True, start = dualstart[i])
-    end_time = time.process_time()
-    standard_hint_time = end_time - start_time
-
-    start_time = time.process_time()
-    for i in range(iterations):
-        neighbors.append(g[i].neighbors(g[i].order()-1))
-        B[i] = fancy_expand_solution(solutions[i]['B'], neighbors[i])
-        dualstart[i] = {'zs':[cvxopt.matrix(B[i])]}
-    end_time = time.process_time()
-    print("spent ", end_time-start_time, " just computing starting points.")
     start_time = time.process_time()
     for i in range(iterations):
         x = lovasz_theta(g[i], long_return = True, start = dualstart[i])
     end_time = time.process_time()
     fancy_hint_time = end_time - start_time
 
-    return without_hint_time, standard_hint_time, fancy_hint_time
+    start_time = time.process_time()
+    for i in range(iterations):
+        B.append(standard_expand_solution(standard_solutions[i]['B']))
+        dualstart[i] = {'zs':[cvxopt.matrix(B[i])]}
+    end_time = time.process_time()
+    #print("spent ", end_time-start_time, " just computing starting points.")
+    start_time = time.process_time()
+    for i in range(iterations):
+        x = lovasz_theta(g[i], long_return = True, start = dualstart[i])
+    end_time = time.process_time()
+    standard_hint_time = end_time - start_time
+
+    return without_hint_time, fancy_hint_time, standard_hint_time
 
 def test_evaluate_lovasz_theta_initial_values():
-    print(test_lovasz_theta_initial_values(20, 1))
+    print(test_lovasz_theta_initial_values(20, 50))
+test_evaluate_lovasz_theta_initial_values()
     #print(end_time-start_time)
     # g, _ = FUN.remove_extra_edges(g)
     # print(g.lovasz_theta())
@@ -388,4 +315,40 @@ def redis_scratchpad():
     #print(r.hget("tuna", "fish"))
     end_time = time.process_time()
     #print( end_time - start_time)
-redis_scratchpad()
+#redis_scratchpad()
+
+def test_calculate_indep_sets_from_subgraph():
+    n=5
+    g = FUN.rand_graph(n,n*(n-1)/4)
+    g = FUN.mutate_add_another_vertex(g)
+    g = FUN.mutate_add_another_vertex(g)
+    g = FUN.mutate_add_another_vertex(g)
+    g.add_vertex()
+    g.add_edges([(vertex,g.order()-1) for vertex in range(g.order()-1)]  )
+    #for vertex in range(g.order()-1):
+
+    # for _ in range(25):
+    #     g = FUN.mutate_add_another_vertex(g)
+    subgraph = g.induced_subgraph(range(g.order()-1))
+    #print(subgraph)
+    #print(g.raw_maximal_independent_vertex_sets())
+    #print(indep_sets_of_subgraph)
+    start_time = time.process_time()
+    g.maximal_independent_vertex_sets()
+    end_time = time.process_time()
+    print(end_time-start_time)
+    start_time = time.process_time()
+    g.maximal_independent_vertex_sets()
+    end_time = time.process_time()
+    print(end_time - start_time)
+
+    start_time = time.process_time()
+    g.raw_maximal_independent_vertex_sets()
+    end_time = time.process_time()
+    print(end_time - start_time)
+    indep_sets_of_subgraph = subgraph.raw_maximal_independent_vertex_sets()
+    start_time = time.process_time()
+    indep_sets_of_g = FUN.calculate_independent_sets_from_subgraph(indep_sets_of_subgraph,g)
+    end_time = time.process_time()
+    print(end_time - start_time)
+#test_calculate_indep_sets_from_subgraph()

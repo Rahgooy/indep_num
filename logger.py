@@ -1,5 +1,6 @@
 import sys
 import time
+import threading
 from helpers import OutputColors as clr
 
 LOG_ENABLED = True
@@ -41,8 +42,7 @@ class Logger:
                 new_profile[func_name]['calls'] += self.profile[k]['calls']
                 new_profile[func_name]['total'] += self.profile[k]['total']
             else:
-                new_profile[func_name]['calls'] = self.profile[k]['calls']
-                new_profile[func_name]['total'] = self.profile[k]['total']
+                new_profile[func_name] = {'calls':self.profile[k]['calls'], 'total':self.profile[k]['total']}
         self.profile = new_profile
 
     def print_profile(self):

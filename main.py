@@ -36,8 +36,9 @@ if __name__ == "__main__":
             result_table.write(str(FUN.fit(best_graph)) + "," + str(best_graph.lovasz_theta()) + "," + str(best_graph.alpha()))
             result_table.write("\n")
             #print (branch_fator, meta_pop, pop_per_mu, iterations_per_mu, elite_percent, crossover_percent, meta_elite_percent, make_unique, meta_select_proc)
-            global_logger.reset() #reset logger
+            #global_logger.reset() #reset logger
             #reset_cache_number()
+    print(best_graph.adjacency_matrix())
     result_table.close()
     end_time = time.process_time()
     print("total time is ", end_time - start_time)
@@ -47,7 +48,7 @@ if __name__ == "__main__":
     # print (g.alpha())
     # print (g.order())
     # print (g.adjacency_matrix())
-    # global_logger.print_profile()
+    global_logger.print_profile()
     #print_cache_stats()
 """branch_factors = [1,2,5,7]
     meta_pops = [1,3,5,10,20]

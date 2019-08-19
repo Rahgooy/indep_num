@@ -3,7 +3,7 @@ from igraph import *
 from logger import wrap_with_log
 from lovasz import lovasz_theta
 from caching_redis import wrap_extended_graph_method_with_cache as wrap_with_cache
-from caching_redis import get_from_start_matrices
+from caching_redis import get_from_start_matrices, get_from_start_indep_sets
 import cvxopt
 import functions as FUN
 import numpy as np
@@ -36,25 +36,30 @@ class ExtendedGraph(Graph):
     @wrap_with_log
     def raw_theta(self):
         subgraph = self.induced_subgraph(range(self.order()-1), implementation="copy_and_delete")
-        seed = get_from_start_matrices(subgraph)
+        #seed = get_from_start_matrices(subgraph)
+        seed=None
         if not seed is None:
             return lovasz_theta(self, start = {'zs':[cvxopt.matrix(seed)]})
         else:
             return lovasz_theta(self)
 
     @wrap_with_log
-    @wrap_with_cache
     def maximal_independent_vertex_sets(self):
-        #"""computes the pair independence_number, maximal independent sets"""
-        independent_sets = sorted(super().maximal_independent_vertex_sets(), key=len)
-
-        return independent_sets# indep_num, independent_sets
+        subgraph = self.induced_subgraph(range(self.order()-1), implementation= "copy_and_delete")
+        seed = get_from_start_indep_sets(subgraph)
+        if not seed is None:
+            return FUN.calculate_independent_sets_from_subgraph(seed,self)
+        else:
+            return self.raw_maximal_independent_vertex_sets()
+        # independent_sets = sorted(super().maximal_independent_vertex_sets(), key=len)
+        # independent_sets = [set(i) for i in independent_sets]
+        # return independent_sets# indep_num, independent_sets
 
     @wrap_with_log
     def raw_maximal_independent_vertex_sets(self):
         #"""computes the pair independence_number, maximal independent sets"""
         independent_sets = sorted(super().maximal_independent_vertex_sets(), key=len)
-
+        independent_sets = [set(i) for i in independent_sets]
         return independent_sets# indep_num, independent_sets
 
     @wrap_with_log

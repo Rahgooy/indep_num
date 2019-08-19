@@ -2,7 +2,7 @@
 import numpy as np
 from logger import global_logger, wrap_with_log
 from caching_redis import clear_cache
-from caching_redis import set_to_start_matrices
+from caching_redis import set_to_start_matrices, set_to_start_indep_sets
 from caching_redis import calculate_fitness_in_batch
 #from multiprocessing import Process
 from threading import Thread
@@ -146,6 +146,7 @@ class GA(object):
                 for g in self.pop:
                     #assert g.order()==self.pop[0].order()
                     set_to_start_matrices(g)
+                    set_to_start_indep_sets(g)
             else:
                 #self.pop=sorted(self.pop, key= self.fit, reverse=True)
                 self._select()
