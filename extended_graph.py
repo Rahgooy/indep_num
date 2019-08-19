@@ -36,7 +36,7 @@ class ExtendedGraph(Graph):
     @wrap_with_log
     def raw_theta(self):
         subgraph = self.induced_subgraph(range(self.order()-1), implementation="copy_and_delete")
-        #seed = get_from_start_matrices(subgraph)
+        seed = get_from_start_matrices(subgraph)
         seed=None
         if not seed is None:
             return lovasz_theta(self, start = {'zs':[cvxopt.matrix(seed)]})

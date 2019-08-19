@@ -1,9 +1,11 @@
 """A simple implementation of genetic algorithm."""
 import numpy as np
 from logger import global_logger, wrap_with_log
+from extended_graph import *
 from caching_redis import clear_cache
 from caching_redis import set_to_start_matrices, set_to_start_indep_sets
 from caching_redis import calculate_fitness_in_batch
+from caching_redis import get_graphs_from_redis, set_graphs_to_redis
 #from multiprocessing import Process
 from threading import Thread
 def _no_duplicates(value, list,epsilon=0.0001):
@@ -11,6 +13,24 @@ def _no_duplicates(value, list,epsilon=0.0001):
         if abs(value - l)<epsilon:
             return False
     return True
+
+@wrap_with_log
+def _remove_isomorphic_better(popfit):
+    popfit = list(popfit).copy()
+    popfit.reverse()
+    to_remove = []
+    for index1 in range(len(popfit)-1):
+        for index2 in range(index1+1,len(popfit)):
+            if abs(popfit[index1][1] - popfit[index2][1] ) <0.001:
+                if popfit[index1][0].isomorphic(popfit[index2][0]):
+                    to_remove.append(index1)
+                    break
+            else:
+                break
+
+    popfit = [item for index, item in enumerate(popfit) if not index in to_remove]
+    popfit.reverse()
+    return popfit
 
 class GA(object):
     """A generic class which provides the basic functions
@@ -131,18 +151,22 @@ class GA(object):
                     self._remove_isomorphic()
                     self._select()
                 elif meta_select_proc=="take_best_very_unique":
-                    self._remove_isomorphic_better()
-                    #self.pop = sorted(self.pop, key=self.fit, reverse=True)[:self.pop_size]
-                    self.pop = self.pop[:self.pop_size]
-                    self.fitness = self.fitness[:self.pop_size]
+                    #self._remove_isomorphic_better()
+                    # popfit = zip(self.pop, self.fitness)
+                    # popfit = _remove_isomorphic_better(popfit)
+                    # self.pop=[p[0] for p in popfit[:self.pop_size]]
+                    # self.fitness=[p[1] for p in popfit[:self.pop_size]]
+
                     assert(len(self.pop)==len(self.fitness))
                     #self._select()
                 clear_cache()
+                self.update_population_from_redis()
                 good = []
                 goodfit = []
                 gt = 0
                 print("computed graphs with ", self.pop[0].order(), " vertices")
                 print("current pop size ", len(self.pop))
+                assert(len(self.pop)==len(self.fitness))
                 for g in self.pop:
                     #assert g.order()==self.pop[0].order()
                     set_to_start_matrices(g)
@@ -246,48 +270,25 @@ class GA(object):
         if extra > 0:
             self.pop.extend(sorted(remaining_individuals, key = self.fit, reverse=True)[:extra])
 
-
-    @wrap_with_log
-    def _remove_isomorphic(self):
-        """Removes the isomorphic copies from the population."""
-        #pop = sorted(self.pop, key=self.fit)#sorts the population by fitness, increasing.
-        self.pop.reverse()
-        pop = self.pop
-        to_remove = []
-        maximum_removal = len(self.pop)-self.pop_size
-        if maximum_removal <=0:
-            return self.pop
-        for index in range(len(pop)-1):
-            if abs(self.fitness[index] - self.fitness[index+1]) <0.001:
-                if pop[index].isomorphic(pop[index+1]):
-                    to_remove.append(index)
-                    if len(to_remove)>maximum_removal:
-                        print("maximum removal")
-                        break
-        self.pop = [g for index, g in enumerate(pop) if index not in to_remove]
-        return self.pop
-
-    @wrap_with_log
-    def _remove_isomorphic_better(self):
-        #pop = sorted(self.pop, key=self.fit)#sorts the population by fitness, increasing.
-        self.pop.reverse()
-        self.fitness.reverse()
-        pop = self.pop
-        to_remove = []
-        maximum_removal = len(self.pop)-self.pop_size
-        # if maximum_removal <=0:
-        #     return self.pop
-        for index1 in range(len(pop)-1):
-            for index2 in range(index1+1,len(pop)):
-                if abs(self.fitness[index1] - self.fitness[index2] ) <0.001:
-                    if pop[index1].isomorphic(pop[index2]):
-                        to_remove.append(index1)
-                        break
-                else:
-                    break
-        self.pop = [g for index, g in enumerate(pop) if index not in to_remove]
-        self.fitness = [f for index, f in enumerate(self.fitness) if index not in to_remove]
-        #assert len(self.pop)>=self.pop_size
-        self.pop.reverse()
-        self.fitness.reverse()
-        return self.pop
+    def update_population_from_redis(self, method = "least explored"):
+        """replaces self.pop, self.fit with graphs from redis."""
+        redis_values = get_graphs_from_redis(self.pop[0].order(), self.pop[0].induced_subgraph(range(6)) )
+        print(get_graphs_from_redis(self.pop[0].order(), self.pop[0].induced_subgraph(range(6)) ))
+        print("redis values")
+        print (redis_values)
+        current_values = [[x[0], x[1], 0] for x in zip(self.pop, self.fitness)]
+        if not redis_values is None:
+            total_values = eval(redis_values) + current_values
+        else:
+            total_values = current_values
+        total_values = _remove_isomorphic_better(total_values)
+        if method == "least explored":
+            total_values.sort(key=lambda x: x[2]) #sort by usage, increasing
+        total_values.sort(key=lambda x: x[1], reverse = True)# sort by fitness, decreasing
+        number_to_take = min(self.pop_size, len(total_values))
+        total_values = [[x[0], x[1], x[2] + 20] for index, x in enumerate(total_values) if index < number_to_take]
+        popfit = [ [ x[0], x[1] ] for x in total_values[:number_to_take] ]
+        popfit.sort(key=lambda x: x[1], reverse = True)
+        self.pop = [t[0] for t in popfit]
+        self.fitness = [t[1] for t in popfit]
+        set_graphs_to_redis(total_values)

@@ -241,7 +241,7 @@ def test_lovasz_theta_initial_values(graph_size, iterations):
 
 def test_evaluate_lovasz_theta_initial_values():
     print(test_lovasz_theta_initial_values(20, 50))
-test_evaluate_lovasz_theta_initial_values()
+#test_evaluate_lovasz_theta_initial_values()
     #print(end_time-start_time)
     # g, _ = FUN.remove_extra_edges(g)
     # print(g.lovasz_theta())
@@ -284,7 +284,7 @@ def redis_scratchpad():
     import socket
     print ("hooo")
     #print(socket.gethostname())
-    r = redis.Redis(host="172.17.0.1")
+    r = redis.Redis(host="172.17.0.1" db=1)
     print(r.ping())
 
     start_time = time.process_time()
@@ -352,3 +352,11 @@ def test_calculate_indep_sets_from_subgraph():
     end_time = time.process_time()
     print(end_time - start_time)
 #test_calculate_indep_sets_from_subgraph()
+def way_to_save_good_graphs():
+    r = redis.Redis(host="172.17.0.1" db=1)
+    n=5
+    g = FUN.rand_graph(n,n*(n-1)/4)
+    print(g.edges())
+    red.lset()
+
+way_to_save_good_graphs()

@@ -2,13 +2,33 @@ from logger import global_logger as log
 from logger import wrap_with_log
 import redis
 import ast
-red = redis.Redis(host="172.17.0.1")
+pool = redis.ConnectionPool(host="172.17.0.1")
+red = redis.Redis(connection_pool = pool)
 
 #CACHE = {"stats": {"largest_graph_size": 0}}
 CACHE_ENABLED = True
 CLEAR_SMALLER_GRAPHS = True
 START_MATRICES={}
 START_INDEP_SETS={}
+
+@wrap_with_log
+def get_graphs_from_redis(graph_size, initial_graph):
+    values = red.get(str(graph_size)+"-"+str(initial_graph.adjacency_matrix()))
+    if values is None:
+        return None
+    else:
+        return values #expect these to be list [[graph, fitness, usage_number ]]
+                        #usage number is pop_size * iterations / 100
+
+@wrap_with_log
+def set_graphs_to_redis(tuples): #expect tuples to be [[graph, fitness, usage_number ]]
+    graph_size = tuples[0][0].order()
+    initial_graph = tuples[0][0].subgraph(range(6))
+    value = "["
+    for i in tuples:
+        value += "[ExtendedGraph("+str(i[0].edges())+")," + str(i[1]) +"," + str(i[2]) +"],"
+    value = value[:-1] +"]"
+    red.set(str(graph_size)+"-"+str(initial_graph.adjacency_matrix()), value)
 
 @wrap_with_log
 def update_indep_set_batch(updates):
@@ -22,8 +42,7 @@ def calculate_fitness_in_batch(pop):
     pipe = red.pipeline()
     for p in pop:
         pipe.hget(str(p.adjacency_matrix()), "lovasz_theta")
-    # for p in pop:
-    #     pipe.hget(str(p.adjacency_matrix()), "maximal_independent_vertex_sets")
+
     responses = pipe.execute()
 
     response_pipe = red.pipeline()
@@ -48,25 +67,7 @@ def calculate_fitness_in_batch(pop):
         else:
             theta = eval(theta)
 
-        # if responses[index+len(pop)] is None:
-        #     if key in newly_computed_graphs.keys():
-        #         if 'max_indep' in newly_computed_graphs[key].keys():
-        #             indep_sets = newly_computed_graphs[key]['max_indep']
-        #             independence_number = len(indep_sets[-1])
-        #         else:
-        #             indep_sets = pop[index].raw_maximal_independent_vertex_sets()
-        #             response_pipe.hset(key, "maximal_independent_vertex_sets", str(indep_sets))
-        #             independence_number = len(indep_sets[-1])
-        #             newly_computed_graphs[key].update({'max_indep': indep_sets})
-        #     else:
-        #         indep_sets = pop[index].raw_maximal_independent_vertex_sets()
-        #         response_pipe.hset(key, "maximal_independent_vertex_sets", str(indep_sets))
-        #         independence_number = len(indep_sets[-1])
-        #         newly_computed_graphs[key] = {'max_indep': indep_sets}
-        #
-        # else:
-        #     independence_number = len(eval(responses[index+len(pop)])[-1])
-        fitnesses.append(theta/3)
+        fitnesses.append(theta/3) #probably not good to hardcode this!
     for f in fitnesses:
         assert not f is None
     response_pipe.execute()
@@ -88,6 +89,7 @@ def get_from_start_matrices(g):
         return START_MATRICES[k]
     else:
         return None
+
 @wrap_with_log
 def set_to_start_indep_sets(g):
     k = str(g.adjacency_matrix())

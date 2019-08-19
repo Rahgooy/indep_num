@@ -1,5 +1,5 @@
 This command will create a docker image from the Dockerfile.
-docker build --tag ga_docker_image .
+docker build --tag ga_docker_image_with_redis .
 
-This command will run the docker image, which will start main.py
-sudo docker run -itv "$(pwd):/app" ga_docker_image
+Run using. Make sure Redis is running.
+sudo docker run --hostname "dockerhost" -p 6379 -itv "$(pwd):/app" ga_docker_image_with_redis
