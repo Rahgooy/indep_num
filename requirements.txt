@@ -1,4 +1,0 @@
-python-igraph
-numpy
-cvxopt
-

@@ -7,7 +7,8 @@ import lovasz as LOV
 from numpy.random import randint, rand
 from extended_graph import *
 from random import shuffle
-from caching import wrap_extended_graph_method_with_cache as wrap_with_cache
+from caching_redis import wrap_extended_graph_method_with_cache as wrap_with_cache
+from caching_redis import update_indep_set_batch
 from logger import wrap_with_log
 
 """Helper Functions"""
@@ -39,6 +40,56 @@ def rand_graph(n, m):
         r_graph.add_vertex()
     return r_graph
 
+def calculate_independent_sets_from_subgraph(indep_sets_of_subgraph,g):
+    v = g.order()-1
+    neighbors = g.neighbors(v)
+    neighbors.append(v)
+    non_neighbors = [x for x in range(v+1) if not x in neighbors]
+    new_indep_sets= g.induced_subgraph(non_neighbors).raw_maximal_independent_vertex_sets()
+    new_indep_sets =[{non_neighbors[vertex] for vertex in n}.intersection(non_neighbors).union({v}) for n in new_indep_sets]
+
+    to_return = indep_sets_of_subgraph.copy()
+    to_return.extend(new_indep_sets)
+    to_return.sort(key=len)
+    # 
+    # real_ans = g.raw_maximal_independent_vertex_sets()
+    # print(g)
+    # print(non_neighbors)
+    # print("input")
+    # print(indep_sets_of_subgraph)
+    # print(new_indep_sets)
+    # print("yields")
+    # print(to_return)
+    # print(real_ans)
+    # for t in to_return:
+    #     assert t in real_ans
+    # for r in real_ans:
+    #     assert r in to_return
+
+    return to_return
+    #print(new_indep_sets)
+    #print(indep_sets_of_subgraph)
+    # indep_sets = sorted(indep_sets_of_subgraph + new_indep_sets, key=len,reverse = True)
+    # to_return = []
+    # for i in range(len(indep_sets)):
+    #     to_add = True
+    #     for j in range(len(to_return)):
+    #         #print(indep_sets[i])
+    #         if indep_sets[i].issubset(to_return[j]):
+    #             to_add = False
+    #     if to_add:
+    #         to_return.append(indep_sets[i])
+    #to_return = [list(x) for x in to_return]
+    #print(g.raw_maximal_independent_vertex_sets())
+    #real_ans = g.raw_maximal_independent_vertex_sets()
+    #to_return.sort(key=len)
+    #print(to_return)
+    # for t in to_return:
+    #     assert t in real_ans
+    # for r in real_ans:
+    #     assert r in to_return
+    #return to_return
+    #subgraph = g.induced_subgraph(non_neighbors)
 
 @wrap_with_log
 def random_gnp(n, p):
@@ -59,7 +110,8 @@ def random_gnp(n, p):
 
 
 @wrap_with_log
-def remove_extra_edges(g, distinguished=False):
+def remove_extra_edges(g, indep_sets=None, distinguished=False):
+    assert distinguished
     """Calculates the maximal independent sets of g.
     If an edge doesnt intersect a maximal independent set, it can be removed
     without increasing the size of the independence number.
@@ -68,13 +120,20 @@ def remove_extra_edges(g, distinguished=False):
     """
     order = g.order()
     new_graph = g.copy()
+    #independence_number = len(g.raw_maximal_independent_vertex_sets()[-1])
     edges = len(new_graph.edges())
-    indep_sets = None
+
     new_graph, indep_sets = _remove_extra_edge(new_graph, indep_sets, distinguished=distinguished)
+    #values_to_store = [(str(new_graph.adjacency_matrix()), "maximal_independent_vertex_sets", indep_sets)]
     while (len(new_graph.edges()) != edges):
         edges = len(new_graph.edges())
-        new_graph, indep_sets = _remove_extra_edge(new_graph, indep_sets)
+        new_graph, indep_sets = _remove_extra_edge(new_graph, indep_sets, distinguished = distinguished)
+        #values_to_store.append((str(new_graph.adjacency_matrix()), "maximal_independent_vertex_sets", indep_sets))
     assert (new_graph.order() == order)
+    # print(independence_number)
+    # print(len(new_graph.raw_maximal_independent_vertex_sets()[-1]))
+    #assert independence_number == len(new_graph.raw_maximal_independent_vertex_sets()[-1])
+    #update_indep_set_batch(values_to_store)
     return new_graph, indep_sets
 
 
@@ -87,46 +146,55 @@ def _can_remove(e, max_indep_sets):
     for s in sets_with_endpoint0:
         if set([v for v in s if v != e[0]] + [e[1]]) in max_indep_sets:
             return False
+    # print("can remove")
+    # print(e)
+    # print(max_indep_sets)
+    # print(sets_with_endpoint0)
     return True
 
 
 @wrap_with_log
 def _update_indep_sets(g, e, indep_sets):
+    # print("indep_sets")
+    # print(indep_sets)
+    # print(e)
     """g is the new graph, with edge e removed.
     e is the edge which was removed,
     and indep_sets is a list of the maximal independent sets before the edge was removed.
     Returns the list of maximal independent sets of g.
     """
     non_neighbors_of_e = set([v for v in g.vertices() if not v in (g.neighbors(e[0]) + g.neighbors(e[1]))])
-    subgraph_without_e = g.subgraph(non_neighbors_of_e)
-    # new_indep_sets = BON.cliques_of_graph(subgraph_without_e.complement())
-    new_indep_sets = [set(i).intersection(non_neighbors_of_e).union({e[0], e[1]}) for i in indep_sets]
-    # [i for i in indep_sets if i not]
-    extra_indep_sets = []
-    for i in indep_sets:
-        s = set(i)
-        if not (e[0] in s) and (s.union({e[1]}) in new_indep_sets):
-            if not (e[1] in s) and (s.union({e[0]}) in new_indep_sets):
-                extra_indep_sets.append(s)
-    new_indep_sets = new_indep_sets + extra_indep_sets
-    return new_indep_sets
+    #print(non_neighbors_of_e)
+    if len(non_neighbors_of_e)==0:
+        new_indep_sets = [ {e[0],e[1]} ]
+        return sorted(indep_sets + new_indep_sets, key = len)
+    subgraph_without_e = g.induced_subgraph(non_neighbors_of_e)
+    indep_sets_of_subgraph = [set(i).intersection(non_neighbors_of_e) for i in indep_sets]
+    s=[]
+    for i in indep_sets_of_subgraph:
+        if len(i)>0 and i not in s:
+            s.append(i)
+    indep_sets_of_subgraph = s #made indep_sets_of_subgraph unique
+    #print(indep_sets_of_subgraph)
+    new_indep_sets = [set(i).union({e[0],e[1]}) for i in indep_sets_of_subgraph]
+    #print (new_indep_sets)
+    return sorted(indep_sets + new_indep_sets, key= len)
+
 
 
 @wrap_with_log
 def _remove_extra_edge(g, indep_sets=None, distinguished=False):
+    assert distinguished
+    if distinguished:
+        subgraph_check = g.induced_subgraph(range(g.order()-1), implementation="copy_and_delete").adjacency_matrix()
+
     order = g.order()
     """Returns a new graph by removing an edge from g. """
-    # dict = BON.dict_from_adjacency_matrix(g.complement())
-    # if indep_sets is None:
-    #    indep_sets = BON.find_cliques(dict) #a list of all maximal-by-inclusion independent sets.
-    # indep_sets = BON.cliques_of_graph(g.complementer())
-    indep_sets = [set(i) for i in g.maximal_independent_vertex_sets()]
+    if indep_sets is None:
+        indep_sets = [set(i) for i in g.maximal_independent_vertex_sets()]
     max_size = 0
-    max_indep_sets = []  # a list of all maximal-by-size independent sets
     new_graph = g.copy()
-    # max_indep_sets = [i for i in indep_sets if len(i) == len(indep_sets[-1])]
-    max_indep_sets = [set(i) for i in g.largest_independent_vertex_sets()]
-    # removeable_edges = [e for e in g.edges() if _can_remove(e, max_indep_sets)]
+    max_indep_sets = [set(i) for i in indep_sets if len(i) == len(indep_sets[-1])]
     if not distinguished:
         edges = g.edges()
     else:
@@ -134,10 +202,14 @@ def _remove_extra_edge(g, indep_sets=None, distinguished=False):
     shuffle(edges)
     for e in edges:
         if _can_remove(e, max_indep_sets):
-            new_graph.delete_edges(e)
             new_indep_sets = _update_indep_sets(new_graph, e, indep_sets)
+            new_graph.delete_edges(e)
+            if distinguished:
+                assert new_graph.induced_subgraph(range(new_graph.order()-1),implementation="copy_and_delete").adjacency_matrix()==subgraph_check
             return new_graph, new_indep_sets
     assert (order == g.order())
+    if distinguished:
+        assert g.induced_subgraph(range(g.order()-1),implementation="copy_and_delete").adjacency_matrix()==subgraph_check
     return new_graph, indep_sets
 
 
@@ -160,6 +232,19 @@ def _large_lovasz_subgraph(g, fraction=0.5):
         index += 1
     return valuable_vertices
 
+def large_lovasz_subgraph_vertex_count(g, count):
+    """Returns the subgraph of g with {count} vertices such that the subgraph has largest value"""
+    #return g.subgraph(random.sample(g.vertices(), count))
+    costs = g.vertex_cost_list()
+    n=g.order()
+    valuable_vertices = []
+    i = 0
+    while i < count:
+        valuable_vertices.append(costs[i][0])
+        i += 1
+    return g.subgraph(valuable_vertices)
+
+@wrap_with_log
 def select_bad_vertex(g):
     """Uses a roulette selection to find a vertex which contributes little to lovasz theta.
        Returns the bad vertex and its cost.
@@ -172,16 +257,16 @@ def select_bad_vertex(g):
     sample = sum(r > cdf)
     return(costs[sample][0])
 
-
 """Fitness Functions"""
 
 
 @wrap_with_log
-@wrap_with_cache
 def fit(g):
     order = g.order()
     value = g.lovasz_theta() / g.independence_number()
     assert (g.order() == order)
+    if value > 1.5:
+        print (g.adjacency_matrix())
     return value
 
 
@@ -315,16 +400,22 @@ def mutate_composite(g):
 
 @wrap_with_log
 def mutate_distinguished_vertex(g):
+    subgraph = g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete")
+    subgraph_check =  subgraph.adjacency_matrix()
     order = g.order()
+    subgraph_order = order -1
+    subgraph_edge_density = subgraph.ecount()/(order*(order-1)/2)
     """Assumes the last vertex of g was just added.
     adds an edge between the distinguished vertex and other vertices with probability 0.2
     Then removes unnecessary edges."""
     distinguished_vertex = g.vertices()[-1]
     for v in range(g.order() - 1):
         r = np.random.rand()
-        if r < 0.2:
+        if r < subgraph_edge_density:
             g.add_edge(v, distinguished_vertex)
     g.simplify()
+    assert subgraph_check ==  g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete").adjacency_matrix()
+
     g, _ = remove_extra_edges(g, distinguished=True)
     # other_vertex = randint(0,g.order()-1)
     # if g.has_edge(other_vertex, distinguished_vertex):
@@ -332,6 +423,7 @@ def mutate_distinguished_vertex(g):
     # else:
     #     g.add_edge(other_vertex, distinguished_vertex)
     assert (g.order() == order)
+    assert subgraph_check ==  g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete").adjacency_matrix()
     return g
 
 
@@ -342,14 +434,19 @@ def mutate_add_another_vertex(g):
     """
     new_graph = g.copy()
     # vertex_assignments = np.random.randint(2, size=g.order())
-    indep_sets = g.largest_independent_vertex_sets()
-    neighbors = [a[randint(0, len(a))] for a in indep_sets]
+    max_indep_sets = g.maximal_independent_vertex_sets()
+    indep_sets = [m for m in max_indep_sets if len(m)==len(max_indep_sets[-1])]
+    #indep_sets = g.largest_independent_vertex_sets()
+    neighbors = [list(a)[randint(0, len(a))] for a in indep_sets]
     new_graph.add_vertex()
     new_graph.add_edges([(n, new_graph.vertices()[-1]) for n in neighbors])
     new_graph = new_graph.simplify()
+    new_graph, _ = remove_extra_edges(new_graph, distinguished = True)
+    M= new_graph.induced_subgraph(range(new_graph.order()-1), implementation= "copy_and_delete").adjacency_matrix()
+    assert M == g.adjacency_matrix()
     # for v in g.vertices():
     #     if v!= g.order()-1 and vertex_assignments[v] ==1:
-    #         new_graph.add_edge(v, new_graph.vertices()[-1])
+    #         new_graph.add_edge(v, new_graph.vertices()[-1]
     return new_graph
 
 
@@ -362,7 +459,7 @@ def cr4(g1, g2):
     new_graph = g1.copy()
     for edge in set(g1.edges()) ^ set(g2.edges()):
         r = np.random.rand()
-        if r < 0.5:
+        if r < 0.25:
             if new_graph.has_edge(edge[0], edge[1]):
                 new_graph.delete_edges(edge)
             else:
@@ -381,7 +478,6 @@ def cr5(g1, g2):
     new_graph = ExtendedGraph([])
     new_graph.add_vertices(g1.order())
     for v in new_graph.vertices():
-        # print v
         if vertex_assignments[v] == 0:
             for k in [k for k in g1.neighbors(v) if k > v]:
                 new_graph.add_edge(v, k)

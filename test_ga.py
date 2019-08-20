@@ -3,6 +3,11 @@ import functions as FUN
 import numpy as np
 import lovasz as LOV
 import algorithm_controller as ALG
+import cvxopt
+import time
+import redis
+#import extended_graph
+from extended_graph import *
 from numpy.random import randint, rand
 
 
@@ -154,4 +159,204 @@ def run_tests():
     test_large_lovasz_subgraph()
 #run_tests()
 #algorithm_controller_tests()
-incremental_test()
+def test_lift_graph():
+    g = FUN.rand_graph(10, 10*9//4)
+    while(g.lovasz_theta()/g.independence_number() < 1.1):
+        g = FUN.rand_graph(10, 10*9//4)
+
+    for _ in range(5):
+        g, _ = FUN.remove_extra_edges(g)
+        # print(g.order())
+        # print(g.lovasz_theta())
+        # print(g.independence_number())
+        lifts = [g.co_lift() for _ in range(50)]
+        g = sorted(lifts, key = FUN.fit, reverse = True)[0]
+        #print(g.order())
+        print(FUN.fit(g))
+        for i in range(1):
+            g = FUN.large_lovasz_subgraph_vertex_count(g, 10)
+
+def standard_expand_solution(B):
+    BB = [row.tolist() + [0] for row in B]
+    BB.append([0]*len(BB)+[1])
+    return 0.75*np.array(BB)+0.25*np.identity(len(BB))
+
+def compute_starting_point(g):
+    subgraph = g.induced_subgraph(range(g.order()-1))
+    n_ratio = len(g.neighbors(g.order()-1))/(g.order()-1)
+    subgraph.add_vertex()
+    matrix1 = np.array(lovasz_theta(subgraph, long_return=True)['B'])
+    subgraph = subgraph.induced_subgraph(range(subgraph.order()-1))
+    subgraph = subgraph.complementer().simplify()
+    subgraph.add_vertex()
+    subgraph = subgraph.complementer().simplify()
+    matrix2 = np.array(lovasz_theta(subgraph, long_return=True)['B'])
+    return 0.75*((1-n_ratio)*matrix1+n_ratio*matrix2)+0.25*np.identity(g.order())
+
+
+def test_lovasz_theta_initial_values(graph_size, iterations):
+    g=[]
+    gp=[]
+    solutions=[]
+    standard_solutions=[]
+    dualstart = []
+    B = []
+    neighbors = []
+    for i in range(iterations):
+        g.append(FUN.rand_graph(graph_size,graph_size*(graph_size-1)//4))
+
+        g[i].add_vertex()
+        g[i].add_edges([(v,g[i].order()-1) for v in range(g[i].order()-1) if np.random.rand()<0.5])
+    for i in range(iterations):
+        subgraph = g[i].induced_subgraph(range(g[i].order()-1))
+        standard_solutions.append(lovasz_theta(subgraph, long_return = True))
+    start_time=time.process_time()
+    for i in range(iterations):
+        x = lovasz_theta(g[i], long_return = True)
+    end_time = time.process_time()
+    without_hint_time = end_time- start_time
+    for i in range(iterations):
+        #B.append(0.75*np.array(solutions[i]['B'])+0.25*np.identity(g[i].order()))
+        dualstart.append({'zs':[cvxopt.matrix(compute_starting_point(g[i]))]})
+
+    start_time = time.process_time()
+    for i in range(iterations):
+        x = lovasz_theta(g[i], long_return = True, start = dualstart[i])
+    end_time = time.process_time()
+    fancy_hint_time = end_time - start_time
+
+    start_time = time.process_time()
+    for i in range(iterations):
+        B.append(standard_expand_solution(standard_solutions[i]['B']))
+        dualstart[i] = {'zs':[cvxopt.matrix(B[i])]}
+    end_time = time.process_time()
+    #print("spent ", end_time-start_time, " just computing starting points.")
+    start_time = time.process_time()
+    for i in range(iterations):
+        x = lovasz_theta(g[i], long_return = True, start = dualstart[i])
+    end_time = time.process_time()
+    standard_hint_time = end_time - start_time
+
+    return without_hint_time, fancy_hint_time, standard_hint_time
+
+def test_evaluate_lovasz_theta_initial_values():
+    print(test_lovasz_theta_initial_values(20, 50))
+#test_evaluate_lovasz_theta_initial_values()
+    #print(end_time-start_time)
+    # g, _ = FUN.remove_extra_edges(g)
+    # print(g.lovasz_theta())
+    # print(g.independence_number())
+    # g = g.complementer()
+    # g.simplify()
+    # lifted = g.random_lift()
+    # lifted = lifted.complementer()
+    # lifted.simplify()
+    # lifted, _ = FUN.remove_extra_edges(lifted)
+    # print(lifted.lovasz_theta())
+    # print(lifted.independence_number())
+    # back_down = FUN.large_lovasz_subgraph_vertex_count(lifted, 10)
+    # back_down, _ = FUN.remove_extra_edges(back_down)
+    # print(back_down.lovasz_theta())
+    # print(back_down.independence_number())
+    # back_down = back_down.complementer()
+    # back_up = back_down.random_lift()
+    # back_up = back_up.complementer()
+    # back_up.simplify()
+    # back_up, _ = FUN.remove_extra_edges(back_up)
+    # print(back_up.lovasz_theta())
+    # print(back_up.independence_number())
+    #g = extended_graph.ExtendedGraph([(0,1),(1,2),(2,3),(3,4),(4,0)])
+    #print(g.random_lift())
+    #print(g.lift([(0,1)]))
+#test_lift_graph()
+#test_evaluate_lovasz_theta_initial_values()
+#test_lovasz_theta_initial_values()
+
+# def troubleshooting_scratchpad():
+#     g = ExtendedGraph([(0,1),(1,2),(2,3),(1,3)])
+#     g.delete_edges([(0,1)])
+#     print(g.adjacency_matrix())
+#     permutation = list(range(g.order()))
+#     g.permute_vertices(permutation)
+#     print(g.adjacency_matrix())
+#troubleshooting_scratchpad()
+def redis_scratchpad():
+    import socket
+    print ("hooo")
+    #print(socket.gethostname())
+    r = redis.Redis(host="172.17.0.1" db=1)
+    print(r.ping())
+
+    start_time = time.process_time()
+    x = 5
+    end_time = time.process_time()
+    #print (end_time-start_time)
+    start_time = time.process_time()
+    g = ExtendedGraph([(i,i+1) for i in range(4)]+[(4,0),(5,0)])
+        #l = g.lovasz_theta()
+    print(g.lovasz_theta())
+    print(g.lovasz_theta())
+    print(g.lovasz_theta())
+    print(g.independence_number())
+    #r.hset(str(g.adjacency_matrix()), "lovasz_theta",(5**0.5))
+    #print (float((r.hget(str(g.adjacency_matrix()), "lovasz_theta"))))
+    #print (g.lovasz_theta())
+    print(g.calculate_start_matrix())
+    print(g.calculate_start_matrix())
+    for x in g.maximal_independent_vertex_sets():
+        print(x)
+    r.hset("tuna", "fish", "hongkong")# ["long","lost","love"])
+
+
+
+    print(r.exists("tuna", "fish"))
+    print(r.hkeys("tuna"))
+    print(r.hget("tuna", "fish"))
+    #print(r.hget("tuna", "fish"))
+    end_time = time.process_time()
+    #print( end_time - start_time)
+#redis_scratchpad()
+
+def test_calculate_indep_sets_from_subgraph():
+    n=5
+    g = FUN.rand_graph(n,n*(n-1)/4)
+    g = FUN.mutate_add_another_vertex(g)
+    g = FUN.mutate_add_another_vertex(g)
+    g = FUN.mutate_add_another_vertex(g)
+    g.add_vertex()
+    g.add_edges([(vertex,g.order()-1) for vertex in range(g.order()-1)]  )
+    #for vertex in range(g.order()-1):
+
+    # for _ in range(25):
+    #     g = FUN.mutate_add_another_vertex(g)
+    subgraph = g.induced_subgraph(range(g.order()-1))
+    #print(subgraph)
+    #print(g.raw_maximal_independent_vertex_sets())
+    #print(indep_sets_of_subgraph)
+    start_time = time.process_time()
+    g.maximal_independent_vertex_sets()
+    end_time = time.process_time()
+    print(end_time-start_time)
+    start_time = time.process_time()
+    g.maximal_independent_vertex_sets()
+    end_time = time.process_time()
+    print(end_time - start_time)
+
+    start_time = time.process_time()
+    g.raw_maximal_independent_vertex_sets()
+    end_time = time.process_time()
+    print(end_time - start_time)
+    indep_sets_of_subgraph = subgraph.raw_maximal_independent_vertex_sets()
+    start_time = time.process_time()
+    indep_sets_of_g = FUN.calculate_independent_sets_from_subgraph(indep_sets_of_subgraph,g)
+    end_time = time.process_time()
+    print(end_time - start_time)
+#test_calculate_indep_sets_from_subgraph()
+def way_to_save_good_graphs():
+    r = redis.Redis(host="172.17.0.1" db=1)
+    n=5
+    g = FUN.rand_graph(n,n*(n-1)/4)
+    print(g.edges())
+    red.lset()
+
+way_to_save_good_graphs()
