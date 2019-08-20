@@ -84,20 +84,14 @@ def search_with_vanguard(options):
     """
     pop_size = options["meta_pop"]
     independence_number =3
-    #g =FUN.rand_graph(n,  n*(n-1)//3)
     g = ExtendedGraph([(i,i+1) for i in range(4)] + [(4,0),(5,4),(5,2)])
     pop = [g]
-    # for _ in range(options["meta_pop"]):
-    #     while(g.independence_number()!=independence_number):
-    #         print("stupid is as stupid does")
-    #         g =FUN.rand_graph(n,  n*(n-1)//3)
-    #     pop.append(g.copy())
     mutation_options = {"branch_factor":options["branch_factor"],"pop_per_mu":options["pop_per_mu"],
                         "iterations_per_mu":options["iterations_per_mu"], "elite_percent":options["elite_percent"], "crossover_percent":options["crossover_percent"]}
     genetic_alg1 = GA(FUN.fit, curry_add_vertex_and_mutate(mutation_options),
                           None, 0.0, options["meta_elite_percent"], pop_size = options["meta_pop"],make_unique=options["make_unique"])
     #pop = [g]
-    results = genetic_alg1.run(pop, 16, meta_select_proc=options["meta_select_proc"])
+    results = genetic_alg1.run(pop, 30, meta_select_proc=options["meta_select_proc"])
     print([FUN.fit(r) for r in results])
     #return sorted(results, key=FUN.fit, reverse = True)[0]
     return results[0]

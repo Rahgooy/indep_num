@@ -1,0 +1,9 @@
+These files were output files used to examine the effects of changing the code. The files of the form "parameter_tuning_pt{n}.txt" have the form 
+",branch_factor,meta_pop_size,pop_per_mu,iterations_per_mu,elite_percent,crossover_percent,meta_elite_percent,make_unique,meta_select_procedure,
+fitness,theta,alpha."
+
+The code in the earlier examples starts with a random graph of size 10 and mutates by adding one vertex at a time until getting a graph of size 20.
+I now think this was silly- we should start with the same graph.
+
+I noticed at some point that the function "remove extra edges" was being called on the graph as a whole, and this was making it so that 
+the mutations might not have common n-1 subgraphs. These documents were all from before the switch to Redis.
