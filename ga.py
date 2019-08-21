@@ -270,7 +270,7 @@ class GA(object):
         if extra > 0:
             self.pop.extend(sorted(remaining_individuals, key = self.fit, reverse=True)[:extra])
 
-    def update_population_from_redis(self, method = "best"):
+    def update_population_from_redis(self, method = "least explored"):
         """replaces self.pop, self.fit with graphs from redis."""
         redis_values = get_graphs_from_redis(self.pop[0].order(), self.pop[0].induced_subgraph(range(6)) )
         # print(get_graphs_from_redis(self.pop[0].order(), self.pop[0].induced_subgraph(range(6)) ))
@@ -282,13 +282,16 @@ class GA(object):
         else:
             total_values = current_values
         total_values = _remove_isomorphic_better(total_values)
+        total_values.sort(key=lambda x: x[1], reverse = True)# sort by fitness, decreasing
+        print("we have ", len(total_values), " total values for graphs of this size.")
+        total_values = total_values[:100]
         if method == "least explored":
             total_values.sort(key=lambda x: x[2]) #sort by usage, increasing
-        total_values.sort(key=lambda x: x[1], reverse = True)# sort by fitness, decreasing
         number_to_take = min(self.pop_size, len(total_values))
         total_values = [[x[0], x[1], x[2] + 20] if index < number_to_take else x for index, x in enumerate(total_values)]
         popfit = [ [ x[0], x[1] ] for x in total_values[:number_to_take] ]
         popfit.sort(key=lambda x: x[1], reverse = True)
         self.pop = [t[0] for t in popfit]
         self.fitness = [t[1] for t in popfit]
+        total_values.sort(key=lambda x: x[2])
         set_graphs_to_redis(total_values)

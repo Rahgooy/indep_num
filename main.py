@@ -12,8 +12,8 @@ if __name__ == "__main__":
     #                pop_size = 100, independence_number=3)
     result_table = open("multi_threaded_time_test.txt","w+")
 
-    meta_pops = [30]
-    branch_factors = [7]
+    meta_pops = [10]
+    branch_factors = [5]
     pop_per_mus = [200]
     iterations_per_mus = [10]
     elite_percents = [0.1]
