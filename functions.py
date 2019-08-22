@@ -22,23 +22,6 @@ def edge_list_from_dict(dict):
                 edge_list.append((k, v))
     return edge_list
 
-@wrap_with_log
-def rand_graph(n, m):
-    """Generate a random graph with n vertices and m edges"""
-    g = {v: [] for v in range(n)}
-    i = 0
-    while i < m:
-        x = randint(0, n)
-        y = randint(0, n)
-        if x > y:
-            x, y = y, x
-        if x != y and y not in g[x]:
-            g[x].append(y)
-            i += 1
-    r_graph = ExtendedGraph(edge_list_from_dict(g))
-    while r_graph.order() < n:
-        r_graph.add_vertex()
-    return r_graph
 
 def calculate_independent_sets_from_subgraph(indep_sets_of_subgraph,g):
     v = g.order()-1
@@ -51,62 +34,8 @@ def calculate_independent_sets_from_subgraph(indep_sets_of_subgraph,g):
     to_return = indep_sets_of_subgraph.copy()
     to_return.extend(new_indep_sets)
     to_return.sort(key=len)
-    # 
-    # real_ans = g.raw_maximal_independent_vertex_sets()
-    # print(g)
-    # print(non_neighbors)
-    # print("input")
-    # print(indep_sets_of_subgraph)
-    # print(new_indep_sets)
-    # print("yields")
-    # print(to_return)
-    # print(real_ans)
-    # for t in to_return:
-    #     assert t in real_ans
-    # for r in real_ans:
-    #     assert r in to_return
 
     return to_return
-    #print(new_indep_sets)
-    #print(indep_sets_of_subgraph)
-    # indep_sets = sorted(indep_sets_of_subgraph + new_indep_sets, key=len,reverse = True)
-    # to_return = []
-    # for i in range(len(indep_sets)):
-    #     to_add = True
-    #     for j in range(len(to_return)):
-    #         #print(indep_sets[i])
-    #         if indep_sets[i].issubset(to_return[j]):
-    #             to_add = False
-    #     if to_add:
-    #         to_return.append(indep_sets[i])
-    #to_return = [list(x) for x in to_return]
-    #print(g.raw_maximal_independent_vertex_sets())
-    #real_ans = g.raw_maximal_independent_vertex_sets()
-    #to_return.sort(key=len)
-    #print(to_return)
-    # for t in to_return:
-    #     assert t in real_ans
-    # for r in real_ans:
-    #     assert r in to_return
-    #return to_return
-    #subgraph = g.induced_subgraph(non_neighbors)
-
-@wrap_with_log
-def random_gnp(n, p):
-    """Generate a random graph where each edge has probability p"""
-    dict = {}
-    for a in range(n):
-        neighbors = []
-        for b in range(a + 1, n):
-            r = np.random.rand()
-            if r < p:
-                neighbors.append(b)
-        dict[a] = neighbors
-    g = ExtendedGraph(edge_list_from_dict(dict))
-    while (g.order() < n):  # this can occur if the random graph is not connected
-        g.add_vertex()
-    assert g.order() == n
-    return g
 
 
 @wrap_with_log
@@ -153,32 +82,24 @@ def _can_remove(e, max_indep_sets):
     return True
 
 
+
 @wrap_with_log
 def _update_indep_sets(g, e, indep_sets):
-    # print("indep_sets")
-    # print(indep_sets)
-    # print(e)
     """g is the new graph, with edge e removed.
     e is the edge which was removed,
     and indep_sets is a list of the maximal independent sets before the edge was removed.
     Returns the list of maximal independent sets of g.
     """
     non_neighbors_of_e = set([v for v in g.vertices() if not v in (g.neighbors(e[0]) + g.neighbors(e[1]))])
-    #print(non_neighbors_of_e)
     if len(non_neighbors_of_e)==0:
         new_indep_sets = [ {e[0],e[1]} ]
-        return sorted(indep_sets + new_indep_sets, key = len)
-    subgraph_without_e = g.induced_subgraph(non_neighbors_of_e)
-    indep_sets_of_subgraph = [set(i).intersection(non_neighbors_of_e) for i in indep_sets]
-    s=[]
-    for i in indep_sets_of_subgraph:
-        if len(i)>0 and i not in s:
-            s.append(i)
-    indep_sets_of_subgraph = s #made indep_sets_of_subgraph unique
-    #print(indep_sets_of_subgraph)
-    new_indep_sets = [set(i).union({e[0],e[1]}) for i in indep_sets_of_subgraph]
-    #print (new_indep_sets)
-    return sorted(indep_sets + new_indep_sets, key= len)
+        new_indep_sets.extend(indep_sets)
+        return sorted(new_indep_sets, key = len)
+    indep_sets_from_subgraph = g.induced_subgraph(non_neighbors_of_e).raw_maximal_independent_vertex_sets()
+    non_neighbors = sorted(list(non_neighbors_of_e))
+    new_indep_sets = [{non_neighbors[vertex] for vertex in n}.union({e[0],e[1]}) for n in indep_sets_from_subgraph]
+    new_indep_sets.extend(indep_sets)
+    return sorted(new_indep_sets, key= len)
 
 
 
@@ -202,7 +123,7 @@ def _remove_extra_edge(g, indep_sets=None, distinguished=False):
     shuffle(edges)
     for e in edges:
         if _can_remove(e, max_indep_sets):
-            new_indep_sets = _update_indep_sets(new_graph, e, indep_sets)
+            new_indep_sets = improved_update_indep_sets(new_graph, e, indep_sets)
             new_graph.delete_edges(e)
             if distinguished:
                 assert new_graph.induced_subgraph(range(new_graph.order()-1),implementation="copy_and_delete").adjacency_matrix()==subgraph_check

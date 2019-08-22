@@ -135,32 +135,8 @@ class GA(object):
             """["make_unique_then_select", "only_add_elites",
                 "make_extra_unique", "take_best", "take_best_unique"]"""
             if not meta_select_proc is None:
-                if meta_select_proc == "make_unique_then_select": #standard procedure
-                    self._remove_isomorphic()
-                    self._select()
-                elif meta_select_proc =="only_add_elites":#adds only the elites
-                    self.pop = sorted(self.pop, key=self.fit, reverse=True)[:elites]
-                    self._select()
-                elif meta_select_proc =="make_extra_unique":
-                    self._remove_isomorphic_better()
-                    self._select()
-                elif meta_select_proc =="take_best":
-                    p = sorted(self.pop, key=self.fit, reverse=True)
-                    self.pop = p[:self.n]
-                elif meta_select_proc =="take_best_unique":
-                    self._remove_isomorphic()
-                    self._select()
-                elif meta_select_proc=="take_best_very_unique":
-                    #self._remove_isomorphic_better()
-                    # popfit = zip(self.pop, self.fitness)
-                    # popfit = _remove_isomorphic_better(popfit)
-                    # self.pop=[p[0] for p in popfit[:self.pop_size]]
-                    # self.fitness=[p[1] for p in popfit[:self.pop_size]]
-
-                    assert(len(self.pop)==len(self.fitness))
-                    #self._select()
                 clear_cache()
-                self.update_population_from_redis()
+                self.update_population_from_redis(take = (i!=iter))
                 good = []
                 goodfit = []
                 gt = 0
@@ -270,12 +246,9 @@ class GA(object):
         if extra > 0:
             self.pop.extend(sorted(remaining_individuals, key = self.fit, reverse=True)[:extra])
 
-    def update_population_from_redis(self, method = "least explored"):
+    def update_population_from_redis(self, method = "least explored", take = True):
         """replaces self.pop, self.fit with graphs from redis."""
         redis_values = get_graphs_from_redis(self.pop[0].order(), self.pop[0].induced_subgraph(range(6)) )
-        # print(get_graphs_from_redis(self.pop[0].order(), self.pop[0].induced_subgraph(range(6)) ))
-        # print("redis values")
-        # print (redis_values)
         current_values = [[x[0], x[1], 0] for x in zip(self.pop, self.fitness)]
         if not redis_values is None:
             total_values = eval(redis_values) + current_values
@@ -287,11 +260,17 @@ class GA(object):
         total_values = total_values[:100]
         if method == "least explored":
             total_values.sort(key=lambda x: x[2]) #sort by usage, increasing
-        number_to_take = min(self.pop_size, len(total_values))
-        total_values = [[x[0], x[1], x[2] + 20] if index < number_to_take else x for index, x in enumerate(total_values)]
-        popfit = [ [ x[0], x[1] ] for x in total_values[:number_to_take] ]
-        popfit.sort(key=lambda x: x[1], reverse = True)
-        self.pop = [t[0] for t in popfit]
-        self.fitness = [t[1] for t in popfit]
-        total_values.sort(key=lambda x: x[2])
+        if take:
+            number_to_take = min(self.pop_size, len(total_values))
+        else:
+            number_to_take = 0
+        total_values = [[x[0], x[1], x[2] + 10] if index < number_to_take else x for index, x in enumerate(total_values)]
+        total_values.sort(key=lambda x: x[1], reverse = True)
         set_graphs_to_redis(total_values)
+        if take:
+            popfit = [ [ x[0], x[1] ] for x in total_values[:number_to_take] ]
+            popfit.sort(key=lambda x: x[1], reverse = True)
+            self.pop = [t[0] for t in popfit]
+            self.fitness = [t[1] for t in popfit]
+        else:
+            return

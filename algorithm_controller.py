@@ -95,6 +95,7 @@ def search_with_vanguard(options):
     print([FUN.fit(r) for r in results])
     #return sorted(results, key=FUN.fit, reverse = True)[0]
     return results[0]
+
 """branch_factors = [1,2,5,7]
     meta_pops = [1,3,5,10,20]
     pop_per_mu = [50,100,200]

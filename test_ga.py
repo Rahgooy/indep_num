@@ -36,17 +36,30 @@ def test_update_independent_sets():
     performs remove_extra_edges, and finds the independent sets again to
     ensure that remove_extra_edges returns the new independent sets correctly.
     """
-    g = FUN.random_gnp(10, .5)
+    g =random_gnp(50, .8)
     #indep_sets = BON.find_cliques(BON.dict_from_adjacency_matrix(g.complementer()))
-    new_graph, new_indep_sets = FUN.remove_extra_edges(g)
+    indep_sets = g.raw_maximal_independent_vertex_sets()
+    #new_graph, new_indep_sets = FUN.remove_extra_edges(g,distinguished=True)
+    #print(g.edges())
+    start = time.process_time()
+    new_indep_sets = FUN._update_indep_sets(g,g.edges()[-1],indep_sets)
+    end = time.process_time()
+    print("total time original: ", end-start)
     #correct_indep_sets = BON.find_cliques(BON.dict_from_adjacency_matrix(new_graph.complementer()))
+    g.delete_edges(g.edges()[-1])
+    new_graph = g.copy()
     correct_indep_sets = [set(i) for i in new_graph.maximal_independent_vertex_sets()]
-    #print new_indep_sets
-    #print correct_indep_sets
+    # print (new_indep_sets)
+    # print (correct_indep_sets)
     for c in correct_indep_sets:
         assert c in new_indep_sets
     for i in new_indep_sets:
-        assert i in correct_indep_sets
+        to_assert = False
+        for j in correct_indep_sets:
+            if i.issubset(j):
+                to_assert = True
+        assert to_assert
+test_update_independent_sets()
 
 def test_add_edge_to_max_indep_set():
     g = FUN.random_gnp(10, .5)
@@ -284,7 +297,7 @@ def redis_scratchpad():
     import socket
     print ("hooo")
     #print(socket.gethostname())
-    r = redis.Redis(host="172.17.0.1" db=1)
+    r = redis.Redis(host="172.17.0.1", db=1)
     print(r.ping())
 
     start_time = time.process_time()
@@ -353,10 +366,10 @@ def test_calculate_indep_sets_from_subgraph():
     print(end_time - start_time)
 #test_calculate_indep_sets_from_subgraph()
 def way_to_save_good_graphs():
-    r = redis.Redis(host="172.17.0.1" db=1)
+    r = redis.Redis(host="172.17.0.1", db=1)
     n=5
     g = FUN.rand_graph(n,n*(n-1)/4)
     print(g.edges())
     red.lset()
 
-way_to_save_good_graphs()
+#way_to_save_good_graphs()

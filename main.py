@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     meta_pops = [10]
     branch_factors = [5]
-    pop_per_mus = [200]
+    pop_per_mus = [100]
     iterations_per_mus = [10]
     elite_percents = [0.1]
     crossover_percents = [0.2]
