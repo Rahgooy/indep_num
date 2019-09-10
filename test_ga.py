@@ -6,9 +6,13 @@ import algorithm_controller as ALG
 import cvxopt
 import time
 import redis
+import interpret_results as INT
+import igraph
 #import extended_graph
 from extended_graph import *
+from start_graphs import *
 from numpy.random import randint, rand
+from caching_redis import get_graphs_from_redis
 
 
 def test_crossover_function(l):
@@ -59,7 +63,7 @@ def test_update_independent_sets():
             if i.issubset(j):
                 to_assert = True
         assert to_assert
-test_update_independent_sets()
+#test_update_independent_sets()
 
 def test_add_edge_to_max_indep_set():
     g = FUN.random_gnp(10, .5)
@@ -373,3 +377,28 @@ def way_to_save_good_graphs():
     red.lset()
 
 #way_to_save_good_graphs()
+def interpret_results():
+    #g = INT.get_values_at_level(4)[0]
+    #print(INT.check_state_independence(g[0]))
+    INT.create_plot()
+    # for i in range(7,10):
+    #     values = get_graphs_at_level(i)
+    #     print(values)
+interpret_results()
+def check_level_values():
+    """Checks that the level is actually the number of vertices of the graph."""
+    g = get_graphs_from_redis(4,start_graph_a3)
+    print(g)
+    g = get_graphs_from_redis(5,start_graph_a3)
+    print(g)
+    g = get_graphs_from_redis(6,start_graph_a3)
+    print(g)
+    g = get_graphs_from_redis(7,start_graph_a3)
+    print(g)
+#check_level_values()
+def chromatic_number():
+    n = 10
+    g = ExtendedGraph.rand_graph(n,n*(n-1)/4)
+    z = igraph.IGChromaticNumber(g)
+    print(z)
+#chromatic_number()

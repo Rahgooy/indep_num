@@ -1,7 +1,6 @@
 from logger import global_logger as log
 from logger import wrap_with_log
 import redis
-import ast
 pool = redis.ConnectionPool(host="172.17.0.1")
 red = redis.Redis(connection_pool = pool)
 
@@ -11,14 +10,16 @@ CLEAR_SMALLER_GRAPHS = True
 START_MATRICES={}
 START_INDEP_SETS={}
 
+def reset_redis_graph_statistics():
+    """resets the amount of times each graph has been explored to 0."""
+
 @wrap_with_log
 def get_graphs_from_redis(graph_size, initial_graph):
     values = red.get(str(graph_size)+"-"+str(initial_graph.adjacency_matrix()))
     if values is None:
         return None
     else:
-        return values #expect these to be list [[graph, fitness, usage_number ]]
-                        #usage number is pop_size * iterations / 100
+        return values #we will plan to call 'eval' on values when Extended Graph is available.
 
 @wrap_with_log
 def set_graphs_to_redis(tuples): #expect tuples to be [[graph, fitness, usage_number ]]
@@ -68,8 +69,8 @@ def calculate_fitness_in_batch(pop):
             theta = eval(theta)
 
         fitnesses.append(theta/3) #probably not good to hardcode this!
-    for f in fitnesses:
-        assert not f is None
+    # for f in fitnesses:
+    #     assert not f is None
     response_pipe.execute()
     return fitnesses
 

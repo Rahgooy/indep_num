@@ -1,45 +1,42 @@
 #!/usr/bin/python3
-from algorithm_controller import search_with_vanguard
+from algorithm_controller import search_with_vanguard, extend_search
 from caching import print_cache_stats, reset_cache_number
 from logger import global_logger
-from itertools import product
 from functools import reduce
+from start_graphs import *
 import functions as FUN
 import time
 if __name__ == "__main__":
     # incremental_ga(initial_size = 12, final_size = 20,
     #                iterations = 10, iterations_between_updates = 2,
     #                pop_size = 100, independence_number=3)
-    result_table = open("multi_threaded_time_test.txt","w+")
+    #result_table = open("multi_threaded_time_test.txt","w+")
 
-    meta_pops = [10]
-    branch_factors = [5]
-    pop_per_mus = [100]
-    iterations_per_mus = [10]
-    elite_percents = [0.1]
-    crossover_percents = [0.2]
-    meta_elite_percents = [0.2]
-    make_uniques = [True]
+    meta_pop = 4
+    branch_factor = 5
+    pop_per_mu = 150
+    iterations_per_mu = 10
+    elite_percent = 0.1
+    crossover_percent = 0.2
+    meta_elite_percent = 0.2
+    make_unique = True
     #meta_select_procs=["make_extra_unique"]
-    meta_select_procs = ["take_best_very_unique"]
+    meta_select_proc = "take_best_very_unique"
     start_time = time.process_time()
-    for branch_factor, meta_pop, pop_per_mu, iterations_per_mu, elite_percent, crossover_percent, meta_elite_percent, make_unique, meta_select_proc in product(branch_factors, meta_pops, pop_per_mus, iterations_per_mus,
-                                                                            elite_percents, crossover_percents, meta_elite_percents, make_uniques, meta_select_procs):
-        options = {"branch_factor":branch_factor, "meta_pop":meta_pop, "pop_per_mu":pop_per_mu, "iterations_per_mu":iterations_per_mu,
-                   "elite_percent":elite_percent, "crossover_percent":crossover_percent, "meta_elite_percent":meta_elite_percent,
-                   "make_unique":make_unique, "meta_select_proc":meta_select_proc}
-        if not(options["meta_elite_percent"]* options["meta_pop"]<1.0 and options["meta_select_proc"] == "only_add_elites"):
-            best_graph = search_with_vanguard(options)
-            result_settings = reduce(lambda x,y: str(x)+ ","+str(y), [options[key] for key in options.keys()], "")
-            result_table.write(result_settings)
-            result_table.write(',')
-            result_table.write(str(FUN.fit(best_graph)) + "," + str(best_graph.lovasz_theta()) + "," + str(best_graph.alpha()))
-            result_table.write("\n")
-            #print (branch_fator, meta_pop, pop_per_mu, iterations_per_mu, elite_percent, crossover_percent, meta_elite_percent, make_unique, meta_select_proc)
-            #global_logger.reset() #reset logger
-            #reset_cache_number()
-    print(best_graph.adjacency_matrix())
-    result_table.close()
+
+    options = {"branch_factor":branch_factor, "meta_pop":meta_pop, "pop_per_mu":pop_per_mu, "iterations_per_mu":iterations_per_mu,
+               "elite_percent":elite_percent, "crossover_percent":crossover_percent, "meta_elite_percent":meta_elite_percent,
+               "make_unique":make_unique, "start_graph":start_graph_a3}
+    #best_graph = search_with_vanguard(options)
+    while(True):
+        extend_search(options)
+        # result_settings = reduce(lambda x,y: str(x)+ ","+str(y), [options[key] for key in options.keys()], "")
+        # result_table.write(result_settings)
+        # result_table.write(',')
+        # result_table.write(str(FUN.fit(best_graph)) + "," + str(best_graph.lovasz_theta()) + "," + str(best_graph.alpha()))
+        # result_table.write("\n")
+    #print(best_graph.adjacency_matrix())
+    #result_table.close()
     end_time = time.process_time()
     print("total time is ", end_time - start_time)
     # exit()

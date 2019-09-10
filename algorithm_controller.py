@@ -5,27 +5,22 @@ import functions as FUN
 from numpy.random import randint, rand
 from logger import *
 from extended_graph import *
-from caching import print_cache_stats, reset_cache_number
+#from caching import print_cache_stats, reset_cache_number
+from caching_redis import get_graphs_from_redis, set_graphs_to_redis
 
 @wrap_with_log
 def mutate_worst_vertex(g,mutation_options,choose_distinguished_vertex=False):
     """finds the lowest-cost vertex of g and removes it.
     Then adds another, distinguished vertex and optimizes its neighborhood."""
-    if choose_distinguished_vertex:
-        subgraph_check =  g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete").adjacency_matrix()
-
-
+    # if choose_distinguished_vertex:
+    #     subgraph_check = g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete").adjacency_matrix()
     g = g.copy()
-    #v = FUN.select_bad_vertex(g)
-    #fit = FUN.fit(g)
     n=g.order()
-    #permutation = [n-1 if x==v else v if x ==n-1 else x for x in range(n)]
     if choose_distinguished_vertex==True:
         permutation = list(range(n))
     g.permute_vertices(permutation)
-    if choose_distinguished_vertex:
-        assert subgraph_check == g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete").adjacency_matrix()
-        #assert g.adjacency_matrix()==subgraph_check
+    # if choose_distinguished_vertex:
+    #     assert subgraph_check == g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete").adjacency_matrix()
     subgraph = g.induced_subgraph([w for w in g.vertices() if w!=n-1], implementation = "copy_and_delete")
     pop = [FUN.mutate_add_another_vertex(subgraph) for _ in range(mutation_options["pop_per_mu"])]
     #pop = pop+[g]
@@ -37,31 +32,22 @@ def mutate_worst_vertex(g,mutation_options,choose_distinguished_vertex=False):
         #good_results = sorted(results, key=FUN.fit, reverse=True)[:mutation_options["branch_factor"]]
         good_results = results[:mutation_options["branch_factor"]]
         good_graphs = good_results
-        #good_graphs = [FUN.remove_extra_edges(res)[0] for res in good_results]
-        # if FUN.fit(good_graphs[-1]) < fit:
-        #     good_graphs[-1]= g
-        for best in good_graphs:
-            subgraph =  best.induced_subgraph(range(best.order()-1), implementation = "copy_and_delete").adjacency_matrix()
-            assert subgraph == subgraph_check
+        # for best in good_graphs:
+        #     subgraph =  best.induced_subgraph(range(best.order()-1), implementation = "copy_and_delete").adjacency_matrix()
+        #     assert subgraph == subgraph_check
         return good_graphs
-    #new_graph = sorted(results, key=FUN.fit, reverse=True)[0]
     new_graph = results[0]
     best = new_graph
-    # if fit < FUN.fit(new_graph):
-    #     best = new_graph
-    # else:
-    #     best=g
-    #best, _ = FUN.remove_extra_edges(best)
     return best
 def add_vertex_and_mutate(g, mutation_options):
-    subgraph_check = g.induced_subgraph(range(g.order()), implementation = "copy_and_delete").adjacency_matrix()
+    #subgraph_check = g.induced_subgraph(range(g.order()), implementation = "copy_and_delete").adjacency_matrix()
     g = g.copy()
     #g=FUN.mutate_add_another_vertex(g)
     g.add_vertex()
     g=mutate_worst_vertex(g, mutation_options, choose_distinguished_vertex = True)
-    for item in g:
-        subgraph = item.induced_subgraph(range(item.order()-1), implementation = "copy_and_delete").adjacency_matrix()
-        assert subgraph_check == subgraph
+    # for item in g:
+    #     subgraph = item.induced_subgraph(range(item.order()-1), implementation = "copy_and_delete").adjacency_matrix()
+    #     assert subgraph_check == subgraph
     return g
 
 def curry_add_vertex_and_mutate(mutation_options):
@@ -83,27 +69,54 @@ def search_with_vanguard(options):
              elite_percent, crossover_percent, meta_elite_percent, make_unique,meta_select_proc
     """
     pop_size = options["meta_pop"]
-    independence_number =3
-    g = ExtendedGraph([(i,i+1) for i in range(4)] + [(4,0),(5,4),(5,2)])
+    #independence_number =3
+    #g = ExtendedGraph([(i,i+1) for i in range(4)] + [(4,0),(5,4),(5,2)])
+    g = options["start_graph"]
     pop = [g]
     mutation_options = {"branch_factor":options["branch_factor"],"pop_per_mu":options["pop_per_mu"],
                         "iterations_per_mu":options["iterations_per_mu"], "elite_percent":options["elite_percent"], "crossover_percent":options["crossover_percent"]}
     genetic_alg1 = GA(FUN.fit, curry_add_vertex_and_mutate(mutation_options),
                           None, 0.0, options["meta_elite_percent"], pop_size = options["meta_pop"],make_unique=options["make_unique"])
     #pop = [g]
-    results = genetic_alg1.run(pop, 30, meta_select_proc=options["meta_select_proc"])
+    results = genetic_alg1.run(pop, 31, meta_select_proc=True)
     print([FUN.fit(r) for r in results])
     #return sorted(results, key=FUN.fit, reverse = True)[0]
     return results[0]
 
-"""branch_factors = [1,2,5,7]
-    meta_pops = [1,3,5,10,20]
-    pop_per_mu = [50,100,200]
-    iterations_per_mu = [5,10,15]
-    elite_percent = [0.05]
-    crossover_percent = [0,0.3]
-    meta_elite_percent = [0.0, 0.2, 0.5]
-    make_unique = [True, False]
-    meta_select_proc = ["make_unique_then_select", "only_add_elites",
-                        "make_extra_unique", "take_best", "take_best_unique"]
-"""
+def choose_level(start_graph):
+    """Determines the level of the search tree best to examine."""
+    top = 60 #the highest level we will examine
+    n = start_graph.order()
+    if rand() < 0.3:
+        #choose the best level by binary search
+        lower = n
+        upper = top
+        while upper > lower+1:
+            level = (upper + lower) //2
+            values = get_graphs_from_redis(level, start_graph)
+            if value is None:
+                upper = level
+            else:
+                lower = level
+        return level, eval(values)
+
+    else:
+        #choose more or less randomly.
+        level = randint(n,60)
+        values = get_graphs_from_redis(level, start_graph)
+        while values is None:
+            level = (level+n)//2
+            values = get_graphs_from_redis(level, start_graph)
+    return level, eval(values)
+
+def extend_search(mutation_options):
+    """Picks one graph from the metapopulation and runs the G.A. for it."""
+    level, values = choose_level(mutation_options["start_graph"])
+    #values = eval(get_graphs_from_redis(level, mutation_options["start_graph"]))
+    values.sort(key=lambda x: x[2])
+    values[0][2]+=20
+    set_graphs_to_redis(values)
+    genetic_alg1 = GA(FUN.fit, curry_add_vertex_and_mutate(mutation_options),
+                          None, 0.0, mutation_options["meta_elite_percent"], pop_size = mutation_options["meta_pop"],make_unique=mutation_options["make_unique"])
+    pop = [values[0][0]]
+    genetic_alg1.run(pop, 2, meta_select_proc =True)

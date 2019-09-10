@@ -5,7 +5,7 @@ import itertools
 import random
 import lovasz as LOV
 from numpy.random import randint, rand
-from extended_graph import *
+#from extended_graph import *
 from random import shuffle
 from caching_redis import wrap_extended_graph_method_with_cache as wrap_with_cache
 from caching_redis import update_indep_set_batch
@@ -40,29 +40,22 @@ def calculate_independent_sets_from_subgraph(indep_sets_of_subgraph,g):
 
 @wrap_with_log
 def remove_extra_edges(g, indep_sets=None, distinguished=False):
-    assert distinguished
+    #assert distinguished
     """Calculates the maximal independent sets of g.
     If an edge doesnt intersect a maximal independent set, it can be removed
     without increasing the size of the independence number.
     We do this repeatedly until no such edges remain.
     If distinguished = True, then we only remove the edges with the last vertex
     """
-    order = g.order()
+    #order = g.order()
     new_graph = g.copy()
-    #independence_number = len(g.raw_maximal_independent_vertex_sets()[-1])
     edges = len(new_graph.edges())
 
     new_graph, indep_sets = _remove_extra_edge(new_graph, indep_sets, distinguished=distinguished)
-    #values_to_store = [(str(new_graph.adjacency_matrix()), "maximal_independent_vertex_sets", indep_sets)]
     while (len(new_graph.edges()) != edges):
         edges = len(new_graph.edges())
         new_graph, indep_sets = _remove_extra_edge(new_graph, indep_sets, distinguished = distinguished)
-        #values_to_store.append((str(new_graph.adjacency_matrix()), "maximal_independent_vertex_sets", indep_sets))
-    assert (new_graph.order() == order)
-    # print(independence_number)
-    # print(len(new_graph.raw_maximal_independent_vertex_sets()[-1]))
-    #assert independence_number == len(new_graph.raw_maximal_independent_vertex_sets()[-1])
-    #update_indep_set_batch(values_to_store)
+    #assert (new_graph.order() == order)
     return new_graph, indep_sets
 
 
@@ -75,10 +68,6 @@ def _can_remove(e, max_indep_sets):
     for s in sets_with_endpoint0:
         if set([v for v in s if v != e[0]] + [e[1]]) in max_indep_sets:
             return False
-    # print("can remove")
-    # print(e)
-    # print(max_indep_sets)
-    # print(sets_with_endpoint0)
     return True
 
 
@@ -105,11 +94,11 @@ def _update_indep_sets(g, e, indep_sets):
 
 @wrap_with_log
 def _remove_extra_edge(g, indep_sets=None, distinguished=False):
-    assert distinguished
-    if distinguished:
-        subgraph_check = g.induced_subgraph(range(g.order()-1), implementation="copy_and_delete").adjacency_matrix()
+    #assert distinguished
+    # if distinguished:
+    #     subgraph_check = g.induced_subgraph(range(g.order()-1), implementation="copy_and_delete").adjacency_matrix()
 
-    order = g.order()
+    #order = g.order()
     """Returns a new graph by removing an edge from g. """
     if indep_sets is None:
         indep_sets = [set(i) for i in g.maximal_independent_vertex_sets()]
@@ -123,14 +112,14 @@ def _remove_extra_edge(g, indep_sets=None, distinguished=False):
     shuffle(edges)
     for e in edges:
         if _can_remove(e, max_indep_sets):
-            new_indep_sets = improved_update_indep_sets(new_graph, e, indep_sets)
+            new_indep_sets = _update_indep_sets(new_graph, e, indep_sets)
             new_graph.delete_edges(e)
-            if distinguished:
-                assert new_graph.induced_subgraph(range(new_graph.order()-1),implementation="copy_and_delete").adjacency_matrix()==subgraph_check
+            # if distinguished:
+            #     assert new_graph.induced_subgraph(range(new_graph.order()-1),implementation="copy_and_delete").adjacency_matrix()==subgraph_check
             return new_graph, new_indep_sets
-    assert (order == g.order())
-    if distinguished:
-        assert g.induced_subgraph(range(g.order()-1),implementation="copy_and_delete").adjacency_matrix()==subgraph_check
+    #assert (order == g.order())
+    # if distinguished:
+    #     assert g.induced_subgraph(range(g.order()-1),implementation="copy_and_delete").adjacency_matrix()==subgraph_check
     return new_graph, indep_sets
 
 
@@ -183,11 +172,11 @@ def select_bad_vertex(g):
 
 @wrap_with_log
 def fit(g):
-    order = g.order()
+    # order = g.order()
     value = g.lovasz_theta() / g.independence_number()
-    assert (g.order() == order)
-    if value > 1.5:
-        print (g.adjacency_matrix())
+    # assert (g.order() == order)
+    # if value > 1.5:
+    #     print (g.adjacency_matrix())
     return value
 
 
@@ -298,14 +287,14 @@ def mutate_remove_then_remove_edges(g):
 @wrap_with_log
 def mutate_add_then_remove_edges(g):
     """Adds edges randomly, then performs remove_extra_edges."""
-    order = g.order()
+    #order = g.order()
     g = g.copy()
     g_c = g.complementer().simplify()
     edges = g_c.edges()
     shuffle(edges)
     g.add_edges(edges[:(3 * order // 2)])
     g, _ = remove_extra_edges(g)
-    assert (g.order() == order)
+    #assert (g.order() == order)
     return g
 
 
@@ -321,21 +310,21 @@ def mutate_composite(g):
 
 @wrap_with_log
 def mutate_distinguished_vertex(g):
-    subgraph = g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete")
-    subgraph_check =  subgraph.adjacency_matrix()
-    order = g.order()
-    subgraph_order = order -1
-    subgraph_edge_density = subgraph.ecount()/(order*(order-1)/2)
+    # subgraph = g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete")
+    # subgraph_check =  subgraph.adjacency_matrix()
+    # order = g.order()
+    #subgraph_order = order -1
+    #subgraph_edge_density = subgraph.ecount()/(order*(order-1)/2)
     """Assumes the last vertex of g was just added.
     adds an edge between the distinguished vertex and other vertices with probability 0.2
     Then removes unnecessary edges."""
     distinguished_vertex = g.vertices()[-1]
     for v in range(g.order() - 1):
         r = np.random.rand()
-        if r < subgraph_edge_density:
+        if r < 0.5:
             g.add_edge(v, distinguished_vertex)
     g.simplify()
-    assert subgraph_check ==  g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete").adjacency_matrix()
+    #assert subgraph_check ==  g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete").adjacency_matrix()
 
     g, _ = remove_extra_edges(g, distinguished=True)
     # other_vertex = randint(0,g.order()-1)
@@ -343,8 +332,8 @@ def mutate_distinguished_vertex(g):
     #     g.delete_edges([(other_vertex, distinguished_vertex)])
     # else:
     #     g.add_edge(other_vertex, distinguished_vertex)
-    assert (g.order() == order)
-    assert subgraph_check ==  g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete").adjacency_matrix()
+    #assert (g.order() == order)
+    #assert subgraph_check ==  g.induced_subgraph(range(g.order()-1), implementation = "copy_and_delete").adjacency_matrix()
     return g
 
 
@@ -363,8 +352,8 @@ def mutate_add_another_vertex(g):
     new_graph.add_edges([(n, new_graph.vertices()[-1]) for n in neighbors])
     new_graph = new_graph.simplify()
     new_graph, _ = remove_extra_edges(new_graph, distinguished = True)
-    M= new_graph.induced_subgraph(range(new_graph.order()-1), implementation= "copy_and_delete").adjacency_matrix()
-    assert M == g.adjacency_matrix()
+    # M= new_graph.induced_subgraph(range(new_graph.order()-1), implementation= "copy_and_delete").adjacency_matrix()
+    # assert M == g.adjacency_matrix()
     # for v in g.vertices():
     #     if v!= g.order()-1 and vertex_assignments[v] ==1:
     #         new_graph.add_edge(v, new_graph.vertices()[-1]
@@ -393,7 +382,7 @@ def cr4(g1, g2):
 def cr5(g1, g2):
     """Flip a coin for each vertex. A pair of vertices whose smaller one is labeled g1
     is an edge iff g1 has that edge. """
-    assert (g1.order() == g2.order())
+    #assert (g1.order() == g2.order())
     vertex_assignments = np.random.randint(2, size=g1.order())
     # new_graph = graphs.CompleteGraph(g1.order()).complement()
     new_graph = ExtendedGraph([])
@@ -407,7 +396,7 @@ def cr5(g1, g2):
                 new_graph.add_edge(v, k)
 
     new_graph, _ = remove_extra_edges(new_graph)
-    assert (new_graph.order() == g1.order())
+    #assert (new_graph.order() == g1.order())
     return new_graph
 
 
@@ -419,7 +408,7 @@ def cr6(g1, g2):
     add all edges between sg1 and sg2, then remove edges which don't affect the independence number.
     This function assumes g1 and g2 have the same number of vertices. Might fail otherwise.
     """
-    assert (g1.order() == g2.order())
+    #assert (g1.order() == g2.order())
     costs_g1 = g1.vertex_cost_list()
     costs_g2 = g2.vertex_cost_list()
     index_g1 = 0
@@ -437,7 +426,7 @@ def cr6(g1, g2):
     for v1, v2 in itertools.product(range(sg1.order()), range(sg2.order())):
         child_graph.add_edge(v1, v2 + sg1.order())
     child_graph, _ = remove_extra_edges(child_graph)
-    assert child_graph.order() == g1.order()
+    #assert child_graph.order() == g1.order()
 
     return child_graph
 
@@ -483,26 +472,26 @@ def cr7(g1, g2):
 @wrap_with_log
 def cr8(g1, g2):
     """ adds an edge if there is an edge in g1 or in g2"""
-    assert (g1.order() == g2.order())
+    #assert (g1.order() == g2.order())
     new_graph = g1.copy()
     for e in g2.edges():
         if not new_graph.has_edge(e[0], e[1]):
             new_graph.add_edges([e])
     new_graph, _ = remove_extra_edges(new_graph)
-    assert (new_graph.order() == g1.order())
+    #assert (new_graph.order() == g1.order())
     return new_graph
 
 
 @wrap_with_log
 def cr_distinguished(g1, g2):
     """same as cr8 but for distinguished vertex"""
-    assert (g1.order() == g2.order())
+    #assert (g1.order() == g2.order())
     new_graph = g1.copy()
     for e in g2.edges():
         if not new_graph.has_edge(e[0], e[1]):
             new_graph.add_edges([e])
     new_graph, _ = remove_extra_edges(new_graph, distinguished=True)
-    assert (new_graph.order() == g1.order())
+    #assert (new_graph.order() == g1.order())
     return new_graph
 # def cr_distinguished_vertex(g1,g2):
 #     """Assumes that the subgraph induced by deleting the last vertex

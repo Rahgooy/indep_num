@@ -142,7 +142,7 @@ class GA(object):
                 gt = 0
                 print("computed graphs with ", self.pop[0].order(), " vertices")
                 print("current pop size ", len(self.pop))
-                assert(len(self.pop)==len(self.fitness))
+                #assert(len(self.pop)==len(self.fitness))
                 for g in self.pop:
                     #assert g.order()==self.pop[0].order()
                     set_to_start_matrices(g)
@@ -175,7 +175,7 @@ class GA(object):
             # 2. generate the new population
             # 2.1 Elitisism
             if i!= iter:
-                numthreads = min(8,len(self.pop))
+                numthreads = min(4,len(self.pop))
                 results = [None]*numthreads
                 if self.make_unique and len(self.pop)>=numthreads:
                     self.new_graph_dictionary={}
@@ -196,7 +196,6 @@ class GA(object):
                 popfit= sorted(popfit, key = lambda x: x[1], reverse = True)
                 self.pop = [g for g, f in popfit]
                 self.fitness = [f for g, f in popfit]
-                #self.pop = sorted(new_graphs, key= self.fit, reverse=True)
         return good
 
     @wrap_with_log
@@ -209,10 +208,6 @@ class GA(object):
         elites = int(self.n * self.p_elite)
         elite_pop = self.pop[:elites]
         elite_fit = self.fitness[:elites]
-        #self.fitness = []
-        # for i in range(len(self.pop)):
-        #     f = self.fit(self.pop[i])
-        #     self.fitness.append(f)
 
         # roulette wheel selection
         vals = np.array(self.fitness)
@@ -264,13 +259,13 @@ class GA(object):
             number_to_take = min(self.pop_size, len(total_values))
         else:
             number_to_take = 0
-        total_values = [[x[0], x[1], x[2] + 10] if index < number_to_take else x for index, x in enumerate(total_values)]
-        total_values.sort(key=lambda x: x[1], reverse = True)
-        set_graphs_to_redis(total_values)
+        total_values = [[x[0], x[1], x[2] + 15] if index < number_to_take else x for index, x in enumerate(total_values)]
         if take:
             popfit = [ [ x[0], x[1] ] for x in total_values[:number_to_take] ]
             popfit.sort(key=lambda x: x[1], reverse = True)
             self.pop = [t[0] for t in popfit]
             self.fitness = [t[1] for t in popfit]
+            total_values.sort(key=lambda x: x[1], reverse = True)
+            set_graphs_to_redis(total_values)
         else:
             return

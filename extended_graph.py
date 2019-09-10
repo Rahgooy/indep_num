@@ -4,6 +4,7 @@ from logger import wrap_with_log
 from lovasz import lovasz_theta
 from caching_redis import wrap_extended_graph_method_with_cache as wrap_with_cache
 from caching_redis import get_from_start_matrices, get_from_start_indep_sets
+from numpy.random import randint, rand
 import cvxopt
 import functions as FUN
 import numpy as np
@@ -120,5 +121,39 @@ class ExtendedGraph(Graph):
         lift.simplify()
         lift, _ = FUN.remove_extra_edges(lift)
         return lift
+    @wrap_with_log
+    def random_gnp(n, p):
+        """Generate a random graph where each edge has probability p"""
+        dict = {}
+        for a in range(n):
+            neighbors = []
+            for b in range(a + 1, n):
+                r = np.random.rand()
+                if r < p:
+                    neighbors.append(b)
+            dict[a] = neighbors
+        g = ExtendedGraph(FUN.edge_list_from_dict(dict))
+        while (g.order() < n):  # this can occur if the random graph is not connected
+            g.add_vertex()
+        assert g.order() == n
+        return g
 
-    """---"""
+        """---"""
+
+    @wrap_with_log
+    def rand_graph(n, m):
+        """Generate a random graph with n vertices and m edges"""
+        g = {v: [] for v in range(n)}
+        i = 0
+        while i < m:
+            x = randint(0, n)
+            y = randint(0, n)
+            if x > y:
+                x, y = y, x
+            if x != y and y not in g[x]:
+                g[x].append(y)
+                i += 1
+        r_graph = ExtendedGraph(FUN.edge_list_from_dict(g))
+        while r_graph.order() < n:
+            r_graph.add_vertex()
+        return r_graph
