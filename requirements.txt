@@ -1,0 +1,6 @@
+python-igraph
+numpy
+cvxopt
+more-itertools
+redis
+matplotlib
