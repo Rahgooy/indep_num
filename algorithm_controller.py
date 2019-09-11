@@ -91,7 +91,8 @@ def choose_level(start_graph):
         #choose the best level by binary search
         lower = n
         upper = top
-        while upper > lower+1 and not values is None:
+        values = None
+        while upper > lower+1 or values is None:
             level = (upper + lower) //2
             values = get_graphs_from_redis(level, start_graph)
             if values is None:
