@@ -87,14 +87,14 @@ def choose_level(start_graph):
     """Determines the level of the search tree best to examine."""
     top = 60 #the highest level we will examine
     n = start_graph.order()
-    if rand() < 0.3:
+    if rand() < 0.5:
         #choose the best level by binary search
         lower = n
         upper = top
-        while upper > lower+1:
+        while upper > lower+1 and not values is None:
             level = (upper + lower) //2
             values = get_graphs_from_redis(level, start_graph)
-            if value is None:
+            if values is None:
                 upper = level
             else:
                 lower = level
