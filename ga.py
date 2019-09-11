@@ -268,4 +268,5 @@ class GA(object):
             total_values.sort(key=lambda x: x[1], reverse = True)
             set_graphs_to_redis(total_values)
         else:
+            set_graphs_to_redis(total_values)
             return
