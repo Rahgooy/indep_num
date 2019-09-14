@@ -23,7 +23,8 @@ if __name__ == "__main__":
     #meta_select_procs=["make_extra_unique"]
     meta_select_proc = "take_best_very_unique"
     start_time = time.process_time()
-
+    #print("frusturtain")
+    #print(start_graph_a4.independence_number())
     options = {"branch_factor":branch_factor, "meta_pop":meta_pop, "pop_per_mu":pop_per_mu, "iterations_per_mu":iterations_per_mu,
                "elite_percent":elite_percent, "crossover_percent":crossover_percent, "meta_elite_percent":meta_elite_percent,
                "make_unique":make_unique, "start_graph":start_graph_a4}

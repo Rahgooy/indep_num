@@ -243,7 +243,7 @@ class GA(object):
 
     def update_population_from_redis(self, method = "least explored", take = True):
         """replaces self.pop, self.fit with graphs from redis."""
-        redis_values = get_graphs_from_redis(self.pop[0].order(), self.pop[0].induced_subgraph(range(6)) )
+        redis_values = get_graphs_from_redis(self.pop[0].order(), self.pop[0].induced_subgraph(range(4)) )
         current_values = [[x[0], x[1], 0] for x in zip(self.pop, self.fitness)]
         if not redis_values is None:
             total_values = eval(redis_values) + current_values
