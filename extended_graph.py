@@ -65,7 +65,8 @@ class ExtendedGraph(Graph):
 
     @wrap_with_log
     def independence_number(self):
-        return len(self.maximal_independent_vertex_sets()[-1])
+        return super().independence_number()
+        #return len(self.maximal_independent_vertex_sets()[-1])
         #return self.independence_number_and_maximal_independent_sets()[0]
 
     @wrap_with_log
