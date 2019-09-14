@@ -1,7 +1,7 @@
 from logger import global_logger as log
 from logger import wrap_with_log
 import redis
-pool = redis.ConnectionPool(host='172.17.0.1')
+pool = redis.ConnectionPool(host='172.31.33.58')
 red = redis.Redis(connection_pool = pool)
 
 #CACHE = {"stats": {"largest_graph_size": 0}}
