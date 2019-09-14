@@ -1,7 +1,7 @@
 from logger import global_logger as log
 from logger import wrap_with_log
 import redis
-pool = redis.ConnectionPool(host="172.31.33.58")
+pool = redis.ConnectionPool(host='172.31.33.58')
 red = redis.Redis(connection_pool = pool)
 
 #CACHE = {"stats": {"largest_graph_size": 0}}
@@ -68,7 +68,7 @@ def calculate_fitness_in_batch(pop):
         else:
             theta = eval(theta)
 
-        fitnesses.append(theta/3) #probably not good to hardcode this!
+        fitnesses.append(theta/4) #probably not good to hardcode this!
     # for f in fitnesses:
     #     assert not f is None
     response_pipe.execute()
@@ -106,7 +106,7 @@ def get_from_start_indep_sets(g):
     else:
         return None
 
-red.hset("stats", "largest_graph_size", 0)
+#red.hset("stats", "largest_graph_size", 0)
 
 def clear_cache():
     START_MATRICES={}
