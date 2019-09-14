@@ -378,12 +378,14 @@ def way_to_save_good_graphs():
 
 #way_to_save_good_graphs()
 def interpret_results():
-    #g = INT.get_values_at_level(4)[0]
-    #print(INT.check_state_independence(g[0]))
     INT.create_plot()
-    # for i in range(7,10):
-    #     values = get_graphs_at_level(i)
-    #     print(values)
+
+def draw_plot():
+    n=5
+    g = ExtendedGraph.rand_graph(n,n*(n-1)/4)
+    layout = g.layout("kk")
+    plot(g, layout = layout)
+#draw_plot()
 interpret_results()
 def check_level_values():
     """Checks that the level is actually the number of vertices of the graph."""
@@ -402,3 +404,6 @@ def chromatic_number():
     z = igraph.IGChromaticNumber(g)
     print(z)
 #chromatic_number()
+def draw_adj_matrices():
+    INT.create_adjacency_list_file()
+#draw_adj_matrices()

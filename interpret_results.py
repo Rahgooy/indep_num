@@ -14,10 +14,29 @@ def get_values_at_level(i):
         redis_values.sort(key=lambda x: x[1], reverse = True)
     return redis_values
 
+def create_adjacency_list_file():
+    #write the adjacency matrices of the best graphs to a file.
+    i = 6
+    graphs_at_level = get_values_at_level(i)
+    result_table = open("adj_matrices_for_a3.txt","w+")
+    while(graphs_at_level is not None):
+        # if check_state_independence(graphs_at_level[0][0]):
+        #     print("state dependent contextuality at level ", i)
+        best_graph = graphs_at_level[0][0]
+        adj_matrix = best_graph.adjacency_matrix()
+        print(adj_matrix,"\n")
+        result_table.write(str(adj_matrix))
+        result_table.write("\n")
+        i +=1
+        graphs_at_level = get_values_at_level(i)
+
+
+
 def create_plot():
     to_plotx = []
     to_ploty = []
     i = 6
+    print("creatingplot")
     graphs_at_level = get_values_at_level(i)
     while(graphs_at_level is not None):
         # if check_state_independence(graphs_at_level[0][0]):
@@ -32,8 +51,8 @@ def create_plot():
     ax.plot(to_plotx, to_ploty)
     plt.xlabel("number of vertices")
     plt.ylabel("theta/alpha")
-    plt.title("best graphs from start_graph_a2")
-    fig.savefig("9_4_2019.png")
+    plt.title("best graphs from start_graph_a3")
+    fig.savefig("9_14_2019.png")
 
 def necessary_check_for_sic(graph):
     a = graph.independence_number()

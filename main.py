@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     options = {"branch_factor":branch_factor, "meta_pop":meta_pop, "pop_per_mu":pop_per_mu, "iterations_per_mu":iterations_per_mu,
                "elite_percent":elite_percent, "crossover_percent":crossover_percent, "meta_elite_percent":meta_elite_percent,
-               "make_unique":make_unique, "start_graph":start_graph_a3}
+               "make_unique":make_unique, "start_graph":start_graph_a4}
     #best_graph = search_with_vanguard(options)
     while(True):
         extend_search(options)
