@@ -24,7 +24,7 @@ def get_graphs_from_redis(graph_size, initial_graph):
 @wrap_with_log
 def set_graphs_to_redis(tuples): #expect tuples to be [[graph, fitness, usage_number ]]
     graph_size = tuples[0][0].order()
-    initial_graph = tuples[0][0].subgraph(range(4))
+    initial_graph = tuples[0][0].subgraph(range(10))
     value = "["
     for i in tuples:
         value += "[ExtendedGraph("+str(i[0].edges())+")," + str(i[1]) +"," + str(i[2]) +"],"
