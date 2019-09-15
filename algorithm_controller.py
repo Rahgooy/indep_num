@@ -93,6 +93,9 @@ def choose_level(start_graph):
         upper = top
         values = None
         while upper > lower+1 or values is None:
+            print("range")
+            print(upper)
+            print(lower)
             level = (upper + lower) //2
             values = get_graphs_from_redis(level, start_graph)
             if values is None:
@@ -105,8 +108,10 @@ def choose_level(start_graph):
         #choose more or less randomly.
         level = randint(n,60)
         values = get_graphs_from_redis(level, start_graph)
+        print("values")
         while values is None:
             level = (level+n)//2
+            print(level)
             values = get_graphs_from_redis(level, start_graph)
     return level, eval(values)
 
@@ -114,6 +119,7 @@ def extend_search(mutation_options):
     """Picks one graph from the metapopulation and runs the G.A. for it."""
     level, values = choose_level(mutation_options["start_graph"])
     #values = eval(get_graphs_from_redis(level, mutation_options["start_graph"]))
+    #print("got graphs")
     values.sort(key=lambda x: x[2])
     values[0][2]+=20
     set_graphs_to_redis(values)

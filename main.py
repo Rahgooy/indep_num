@@ -29,6 +29,7 @@ if __name__ == "__main__":
                "elite_percent":elite_percent, "crossover_percent":crossover_percent, "meta_elite_percent":meta_elite_percent,
                "make_unique":make_unique, "start_graph":start_graph_a4}
     #best_graph = search_with_vanguard(options)
+    print(options["start_graph"].order())
     while(True):
         extend_search(options)
         # result_settings = reduce(lambda x,y: str(x)+ ","+str(y), [options[key] for key in options.keys()], "")
